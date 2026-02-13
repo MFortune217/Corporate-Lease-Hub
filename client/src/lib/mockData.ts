@@ -36,6 +36,53 @@ export const properties = [
   },
 ];
 
+export const corporateLeases = [
+  {
+    id: 101,
+    employeeName: "Sarah Jenkins",
+    employeeId: "EMP-402",
+    propertyId: 1,
+    propertyName: "Executive Loft Downtown",
+    startDate: "2023-01-15",
+    endDate: "2024-01-15",
+    status: "Active",
+    rent: 3500
+  },
+  {
+    id: 102,
+    employeeName: "Michael Chang",
+    employeeId: "EMP-993",
+    propertyId: 2,
+    propertyName: "Luxury Condo with View",
+    startDate: "2023-06-01",
+    endDate: "2024-06-01",
+    status: "Active",
+    rent: 4200
+  },
+  {
+    id: 103,
+    employeeName: "Elena Rodriguez",
+    employeeId: "EMP-155",
+    propertyId: 3,
+    propertyName: "Suburban Family Home",
+    startDate: "2023-09-01",
+    endDate: "2024-09-01",
+    status: "Renewing",
+    rent: 2800
+  },
+  {
+    id: 104,
+    employeeName: "David Kim",
+    employeeId: "EMP-772",
+    propertyId: 1,
+    propertyName: "Metro City Apartment",
+    startDate: "2024-01-01",
+    endDate: "2025-01-01",
+    status: "Pending Move-in",
+    rent: 3100
+  }
+];
+
 export const vendors = [
   {
     id: 1,
