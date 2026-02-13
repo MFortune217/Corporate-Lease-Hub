@@ -84,7 +84,7 @@ export default function Home() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-10 max-w-3xl mx-auto bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 shadow-2xl hover:bg-white/15 transition-all duration-300"
+            className="mt-32 max-w-3xl mx-auto bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 shadow-2xl hover:bg-white/15 transition-all duration-300"
           >
             <div className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-grow">
