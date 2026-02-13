@@ -6,27 +6,54 @@ import { Card, CardContent } from "@/components/ui/card";
 import { properties } from "@/lib/mockData";
 import { Search, MapPin, Building, Building2, ShieldCheck, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+
+const heroVideos = [
+  "/videos/hero-background.mp4",
+  "/videos/hero-lounge.mp4",
+  "/videos/hero-boardroom.mp4",
+  "/videos/hero-interior.mp4"
+];
 
 export default function Home() {
+  const [currentVideo, setCurrentVideo] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentVideo((prev) => (prev + 1) % heroVideos.length);
+    }, 8000); // Switch every 8 seconds
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col font-sans">
       <Navbar />
       
       {/* Hero Section */}
-      <section className="relative h-[700px] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <video 
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="w-full h-full object-cover"
+      <section className="relative h-[700px] flex items-center justify-center overflow-hidden bg-black">
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={currentVideo}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5 }}
+            className="absolute inset-0 z-0"
           >
-            <source src="/videos/hero-background.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-black/50" />
-        </div>
+            <video 
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              className="w-full h-full object-cover opacity-80"
+            >
+              <source src={heroVideos[currentVideo]} type="video/mp4" />
+            </video>
+          </motion.div>
+        </AnimatePresence>
+        
+        <div className="absolute inset-0 z-0 bg-black/40" />
         
         <div className="container relative z-10 text-center text-white space-y-6">
           <motion.div
@@ -34,9 +61,9 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <h1 className="text-4xl md:text-7xl font-display font-bold leading-tight tracking-tight">
+            <h1 className="text-4xl md:text-7xl font-display font-bold leading-tight tracking-tight drop-shadow-lg">
               Find Your Perfect <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-200">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-200 drop-shadow-md">
                 Corporate Home
               </span>
             </h1>
@@ -46,7 +73,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-light leading-relaxed"
+            className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-md"
           >
             Seamless leasing for professionals, teams, and companies. 
             From luxury lofts to suburban family homes.
@@ -71,6 +98,20 @@ export default function Home() {
               </Button>
             </div>
           </motion.div>
+
+          {/* Carousel Indicators */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
+            {heroVideos.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentVideo(index)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  index === currentVideo ? "bg-white w-6" : "bg-white/40 hover:bg-white/60"
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
