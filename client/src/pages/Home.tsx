@@ -84,17 +84,17 @@ export default function Home() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-32 max-w-3xl mx-auto bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 shadow-2xl hover:bg-white/15 transition-all duration-300"
+            className="mt-32 max-w-2xl mx-auto bg-white/10 backdrop-blur-md p-3 rounded-lg border border-white/20 shadow-2xl hover:bg-white/15 transition-all duration-300"
           >
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-grow">
-                <MapPin className="absolute left-3 top-3 h-5 w-5 text-white/70" />
+                <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-white/70" />
                 <Input 
                   placeholder="Where do you want to live?" 
-                  className="pl-10 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus-visible:ring-white/50 h-12"
+                  className="pl-10 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus-visible:ring-white/50 h-10 text-sm"
                 />
               </div>
-              <Button size="lg" className="h-12 bg-white text-primary hover:bg-white/90 font-semibold px-8 hover:scale-105 transition-transform duration-200">
+              <Button size="default" className="h-10 bg-white text-primary hover:bg-white/90 font-semibold px-6 hover:scale-105 transition-transform duration-200">
                 <Search className="mr-2 h-4 w-4" /> Search Properties
               </Button>
             </div>
