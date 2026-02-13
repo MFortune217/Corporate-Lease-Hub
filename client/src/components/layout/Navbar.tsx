@@ -1,12 +1,15 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Building2, Menu, X } from "lucide-react";
+import { Building2, Menu, X, Wallet, Shield } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useToast } from "@/hooks/use-toast";
 
 export function Navbar() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
+  const [walletConnected, setWalletConnected] = useState(false);
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -14,6 +17,17 @@ export function Navbar() {
     { href: "/owners", label: "Property Owners" },
     { href: "/vendors", label: "Vendors" },
   ];
+
+  const connectWallet = () => {
+    // Mock wallet connection
+    setTimeout(() => {
+      setWalletConnected(true);
+      toast({
+        title: "Wallet Connected",
+        description: "Successfully connected to Ethereum Mainnet",
+      });
+    }, 1000);
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -38,9 +52,25 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
+          
+          <div className="h-6 w-px bg-border mx-2" />
+
+          {/* Admin Link for Demo */}
+          <Link href="/admin" className="text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-1">
+             <Shield className="h-4 w-4" /> Admin
+          </Link>
+
           <div className="flex items-center gap-2 ml-4">
-            <Button variant="outline" size="sm">Log In</Button>
-            <Button size="sm">Get Started</Button>
+            <Button 
+              variant={walletConnected ? "outline" : "secondary"} 
+              size="sm"
+              onClick={connectWallet}
+              className={walletConnected ? "bg-green-50 text-green-700 border-green-200" : ""}
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              {walletConnected ? "0x12...89A" : "Connect Wallet"}
+            </Button>
+            <Button size="sm">Log In</Button>
           </div>
         </div>
 
@@ -67,9 +97,18 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
+              <Link 
+                  href="/admin"
+                  className="text-lg font-medium text-muted-foreground"
+                  onClick={() => setIsOpen(false)}
+              >
+                  Admin Portal
+              </Link>
               <div className="flex flex-col gap-2 mt-4">
-                <Button variant="outline" className="w-full">Log In</Button>
-                <Button className="w-full">Get Started</Button>
+                <Button variant="secondary" onClick={connectWallet}>
+                   <Wallet className="mr-2 h-4 w-4" /> Connect Wallet
+                </Button>
+                <Button className="w-full">Log In</Button>
               </div>
             </div>
           </SheetContent>

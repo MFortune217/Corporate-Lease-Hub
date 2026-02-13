@@ -7,13 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { documents, properties } from "@/lib/mockData";
-import { Search, FileSignature, CheckCircle2, Wallet } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { documents, properties, cryptoCurrencies } from "@/lib/mockData";
+import { Search, FileSignature, CheckCircle2, Wallet, CreditCard } from "lucide-react";
 import { useState, useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Customers() {
+  const { toast } = useToast();
   const [showSignDialog, setShowSignDialog] = useState(false);
+  const [showPayDialog, setShowPayDialog] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [selectedCrypto, setSelectedCrypto] = useState("");
+  
   const sigPad = useRef<any>(null);
 
   const clearSignature = () => {
@@ -21,8 +28,19 @@ export default function Customers() {
   };
 
   const saveSignature = () => {
-    // Logic to save signature would go here
     setShowSignDialog(false);
+    toast({
+      title: "Document Signed",
+      description: "Lease agreement has been securely signed and stored.",
+    });
+  };
+
+  const handlePayment = () => {
+    setShowPayDialog(false);
+    toast({
+      title: "Payment Successful",
+      description: `Payment processed via ${paymentMethod === 'crypto' ? selectedCrypto : 'Credit Card'}. Transaction ID: #TX-${Math.floor(Math.random() * 10000)}`,
+    });
   };
 
   return (
@@ -77,9 +95,73 @@ export default function Customers() {
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
-                  <Button variant="outline" className="justify-start">
-                    <Wallet className="mr-2 h-4 w-4" /> Make Payment
-                  </Button>
+                  <Dialog open={showPayDialog} onOpenChange={setShowPayDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="default" className="justify-start w-full">
+                        <Wallet className="mr-2 h-4 w-4" /> Make Payment
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Make a Payment</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                         <div className="space-y-2">
+                           <Label>Amount Due</Label>
+                           <div className="text-2xl font-bold">$3,500.00</div>
+                         </div>
+                         
+                         <div className="space-y-2">
+                           <Label>Payment Method</Label>
+                           <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                             <SelectTrigger>
+                               <SelectValue placeholder="Select method" />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="card">Credit / Debit Card</SelectItem>
+                               <SelectItem value="ach">Bank Transfer (ACH)</SelectItem>
+                               <SelectItem value="crypto">Cryptocurrency (Web3)</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </div>
+
+                         {paymentMethod === 'crypto' && (
+                           <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+                             <Label>Select Token</Label>
+                             <Select value={selectedCrypto} onValueChange={setSelectedCrypto}>
+                               <SelectTrigger>
+                                 <SelectValue placeholder="Select Token" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {cryptoCurrencies.filter(c => c.enabled).map(c => (
+                                   <SelectItem key={c.id} value={c.symbol}>
+                                     {c.name} ({c.symbol})
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                             <p className="text-xs text-muted-foreground mt-2">
+                               Transaction will be processed via your connected Web3 wallet.
+                             </p>
+                           </div>
+                         )}
+
+                         {paymentMethod === 'card' && (
+                           <div className="space-y-2">
+                              <Input placeholder="Card Number" />
+                              <div className="flex gap-2">
+                                <Input placeholder="MM/YY" />
+                                <Input placeholder="CVC" />
+                              </div>
+                           </div>
+                         )}
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handlePayment}>Pay Now</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
                   <Button variant="outline" className="justify-start">
                     <FileSignature className="mr-2 h-4 w-4" /> View Documents
                   </Button>

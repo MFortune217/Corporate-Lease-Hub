@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import Customers from "@/pages/Customers";
 import Owners from "@/pages/Owners";
 import Vendors from "@/pages/Vendors";
+import Admin from "@/pages/Admin";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/customers" component={Customers} />
       <Route path="/owners" component={Owners} />
       <Route path="/vendors" component={Vendors} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );
