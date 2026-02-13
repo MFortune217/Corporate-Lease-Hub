@@ -9,18 +9,31 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { corporateLeases, properties, cryptoCurrencies } from "@/lib/mockData";
 import { Search, FileSignature, CheckCircle2, Wallet, Users, Building, PlusCircle, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import type { CorporateLease, Property, CryptoCurrency } from "@shared/schema";
 
 export default function Customers() {
   const { toast } = useToast();
   const [showPayDialog, setShowPayDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("ach");
   const [selectedCrypto, setSelectedCrypto] = useState("");
-  
-  const totalRent = corporateLeases.reduce((acc, lease) => acc + lease.rent, 0);
+
+  const { data: leases = [], isLoading: leasesLoading } = useQuery<CorporateLease[]>({
+    queryKey: ["/api/leases"],
+  });
+
+  const { data: propertiesList = [], isLoading: propertiesLoading } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
+  });
+
+  const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
+    queryKey: ["/api/crypto"],
+  });
+
+  const totalRent = leases.reduce((acc, lease) => acc + lease.rent, 0);
 
   const handlePayment = () => {
     setShowPayDialog(false);
@@ -29,6 +42,20 @@ export default function Customers() {
       description: `Payment of $${totalRent.toLocaleString()} processed via ${paymentMethod === 'crypto' ? selectedCrypto : 'Company Account'}.`,
     });
   };
+
+  const isLoading = leasesLoading || propertiesLoading || cryptoLoading;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-muted/10">
+        <Navbar />
+        <div className="container py-10 flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground text-lg">Loading...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/10">
@@ -57,14 +84,13 @@ export default function Customers() {
           </TabsList>
           
           <TabsContent value="leases" className="space-y-6 mt-6">
-            {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Active Units</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{corporateLeases.length}</div>
+                  <div className="text-3xl font-bold">{leases.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">Across 3 cities</p>
                 </CardContent>
               </Card>
@@ -82,13 +108,12 @@ export default function Customers() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Renewals Needed</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-amber-600">1</div>
+                  <div className="text-3xl font-bold text-amber-600">{leases.filter(l => l.status === 'Renewing').length || 1}</div>
                   <p className="text-xs text-muted-foreground mt-1">Expiring in 30 days</p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Lease Management Table */}
             <Card>
               <CardHeader>
                 <CardTitle>Employee Housing Roster</CardTitle>
@@ -107,7 +132,7 @@ export default function Customers() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {corporateLeases.map((lease) => (
+                    {leases.map((lease) => (
                       <TableRow key={lease.id}>
                         <TableCell>
                           <div>
@@ -139,6 +164,13 @@ export default function Customers() {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {leases.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          No active leases found.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -155,7 +187,7 @@ export default function Customers() {
                  <div className="flex justify-between items-center p-6 border rounded-lg bg-slate-50">
                     <div>
                       <h3 className="text-lg font-bold">November 2023 Invoice</h3>
-                      <p className="text-muted-foreground">Includes {corporateLeases.length} properties</p>
+                      <p className="text-muted-foreground">Includes {leases.length} properties</p>
                     </div>
                     <div className="text-right">
                        <p className="text-3xl font-bold">${totalRent.toLocaleString()}</p>
@@ -202,7 +234,7 @@ export default function Customers() {
                                    <SelectValue placeholder="Select Token" />
                                  </SelectTrigger>
                                  <SelectContent>
-                                   {cryptoCurrencies.filter(c => c.enabled).map(c => (
+                                   {cryptoList.filter(c => c.enabled).map(c => (
                                      <SelectItem key={c.id} value={c.symbol}>
                                        {c.name} ({c.symbol})
                                      </SelectItem>
@@ -237,7 +269,7 @@ export default function Customers() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {properties.map((property) => (
+                  {propertiesList.map((property) => (
                     <div key={property.id} className="border rounded-lg overflow-hidden group hover:shadow-md transition-shadow">
                       <div className="h-48 overflow-hidden relative">
                          <img src={property.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -255,6 +287,9 @@ export default function Customers() {
                       </div>
                     </div>
                   ))}
+                  {propertiesList.length === 0 && (
+                    <p className="text-muted-foreground col-span-3 text-center py-8">No properties available.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

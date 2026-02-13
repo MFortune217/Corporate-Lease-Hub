@@ -9,16 +9,71 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileCheck, Bell, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { JobRequest, Document as DocumentType } from "@shared/schema";
 
 export default function Vendors() {
   const { toast } = useToast();
 
+  const { data: jobs = [], isLoading: jobsLoading } = useQuery<JobRequest[]>({
+    queryKey: ["/api/jobs"],
+  });
+
+  const updateJobMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      await apiRequest("PATCH", `/api/jobs/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+    },
+  });
+
+  const createDocumentMutation = useMutation({
+    mutationFn: async (doc: Partial<DocumentType>) => {
+      await apiRequest("POST", "/api/documents", doc);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      toast({
+        title: "Document Uploaded",
+        description: "Property managers have been notified of your submission.",
+      });
+    },
+  });
+
   const handleUpload = () => {
-    toast({
-      title: "Document Uploaded",
-      description: "Property managers have been notified of your submission.",
+    createDocumentMutation.mutate({
+      name: "Liability Insurance Renewal",
+      status: "Pending",
+      date: new Date().toISOString().split("T")[0],
+      type: "insurance",
+      userName: "Sparkle Cleaners Inc.",
     });
   };
+
+  const handleJobAction = (jobId: number, action: "accepted" | "declined") => {
+    updateJobMutation.mutate({ id: jobId, status: action });
+    toast({
+      title: action === "accepted" ? "Job Accepted" : "Job Declined",
+      description: action === "accepted" ? "You've been assigned to this job." : "The job has been declined.",
+    });
+  };
+
+  const activeJobs = jobs.filter(j => j.status === "pending" || j.status === "accepted");
+  const pendingJobs = jobs.filter(j => j.status === "pending");
+
+  if (jobsLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-muted/10">
+        <Navbar />
+        <div className="container py-10 flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground text-lg">Loading...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/10">
@@ -65,8 +120,8 @@ export default function Vendors() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Active Jobs</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">4</div>
-                  <p className="text-xs text-muted-foreground mt-1">2 due today</p>
+                  <div className="text-3xl font-bold">{activeJobs.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{pendingJobs.length} pending</p>
                 </CardContent>
               </Card>
               <Card>
@@ -86,23 +141,26 @@ export default function Vendors() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[1, 2, 3].map((job) => (
-                    <div key={job} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  {pendingJobs.slice(0, 3).map((job) => (
+                    <div key={job.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-2 rounded text-primary">
                           <Briefcase className="h-5 w-5" />
                         </div>
                         <div>
-                          <h4 className="font-bold">Unit 404 - Deep Clean</h4>
-                          <p className="text-sm text-muted-foreground">Requested by: Skyline Properties • Due: Tomorrow</p>
+                          <h4 className="font-bold">{job.title}</h4>
+                          <p className="text-sm text-muted-foreground">Requested by: {job.requestedBy} • Due: {job.dueDate || "TBD"}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                         <Button variant="outline" size="sm">Decline</Button>
-                         <Button size="sm">Accept</Button>
+                         <Button variant="outline" size="sm" onClick={() => handleJobAction(job.id, "declined")}>Decline</Button>
+                         <Button size="sm" onClick={() => handleJobAction(job.id, "accepted")}>Accept</Button>
                       </div>
                     </div>
                   ))}
+                  {pendingJobs.length === 0 && (
+                    <p className="text-muted-foreground text-center py-8">No pending job requests.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -137,7 +195,7 @@ export default function Vendors() {
                     <Badge variant="outline" className="border-amber-400 text-amber-600">Action Needed</Badge>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Button size="sm" onClick={handleUpload}>
+                    <Button size="sm" onClick={handleUpload} disabled={createDocumentMutation.isPending}>
                       <Upload className="mr-2 h-4 w-4" /> Upload Renewal
                     </Button>
                   </div>

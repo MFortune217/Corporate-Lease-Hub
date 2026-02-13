@@ -7,21 +7,46 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { vendors, properties, cryptoCurrencies } from "@/lib/mockData";
 import { UploadCloud, Globe, CheckCircle, XCircle, Bitcoin, Settings } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { Property, Vendor, CryptoCurrency } from "@shared/schema";
 
 export default function Owners() {
   const { toast } = useToast();
   const [scraping, setScraping] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
-  const [cryptos, setCryptos] = useState(cryptoCurrencies);
+
+  const { data: propertiesList = [], isLoading: propertiesLoading } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
+  });
+
+  const { data: vendorsList = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
+    queryKey: ["/api/vendors"],
+  });
+
+  const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
+    queryKey: ["/api/crypto"],
+  });
+
+  const toggleCryptoMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      await apiRequest("PATCH", `/api/crypto/${id}/toggle`, { enabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crypto"] });
+      toast({
+        title: "Settings Updated",
+        description: "Payment preferences saved.",
+      });
+    },
+  });
 
   const handleScrape = () => {
     if (!websiteUrl) return;
     setScraping(true);
-    // Mock scraping delay
     setTimeout(() => {
       setScraping(false);
       toast({
@@ -31,15 +56,23 @@ export default function Owners() {
     }, 2000);
   };
 
-  const toggleCrypto = (id: string) => {
-    setCryptos(cryptos.map(c => 
-      c.id === id ? { ...c, enabled: !c.enabled } : c
-    ));
-    toast({
-      title: "Settings Updated",
-      description: "Payment preferences saved.",
-    });
+  const toggleCrypto = (id: string, currentEnabled: boolean) => {
+    toggleCryptoMutation.mutate({ id, enabled: !currentEnabled });
   };
+
+  const isLoading = propertiesLoading || vendorsLoading || cryptoLoading;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-muted/10">
+        <Navbar />
+        <div className="container py-10 flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground text-lg">Loading...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/10">
@@ -62,7 +95,6 @@ export default function Owners() {
           </TabsList>
           
           <TabsContent value="properties" className="space-y-6 mt-6">
-            {/* Auto-Scraper Tool */}
             <Card className="bg-primary text-primary-foreground border-none">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -96,7 +128,7 @@ export default function Owners() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.map((property) => (
+              {propertiesList.map((property) => (
                 <Card key={property.id}>
                   <div className="h-40 overflow-hidden relative">
                     <img src={property.image} className="w-full h-full object-cover" />
@@ -115,7 +147,6 @@ export default function Owners() {
                 </Card>
               ))}
               
-              {/* Add New Placeholder */}
               <Card className="border-dashed flex items-center justify-center h-[300px] cursor-pointer hover:bg-muted/50 transition-colors">
                  <div className="text-center">
                    <div className="bg-muted rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
@@ -135,7 +166,7 @@ export default function Owners() {
              </div>
              
              <div className="grid gap-4">
-               {vendors.map((vendor) => (
+               {vendorsList.map((vendor) => (
                  <Card key={vendor.id}>
                    <CardContent className="p-6 flex items-center justify-between">
                      <div className="flex items-center gap-4">
@@ -163,6 +194,9 @@ export default function Owners() {
                    </CardContent>
                  </Card>
                ))}
+               {vendorsList.length === 0 && (
+                 <p className="text-muted-foreground text-center py-8">No vendors found.</p>
+               )}
              </div>
           </TabsContent>
 
@@ -174,7 +208,7 @@ export default function Owners() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {cryptos.map((crypto) => (
+                  {cryptoList.map((crypto) => (
                     <div key={crypto.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-4">
                         <div className="bg-muted p-2 rounded-full">
@@ -192,11 +226,14 @@ export default function Owners() {
                         <Switch 
                           id={`crypto-${crypto.id}`}
                           checked={crypto.enabled}
-                          onCheckedChange={() => toggleCrypto(crypto.id)}
+                          onCheckedChange={() => toggleCrypto(crypto.id, crypto.enabled)}
                         />
                       </div>
                     </div>
                   ))}
+                  {cryptoList.length === 0 && (
+                    <p className="text-muted-foreground text-center py-8">No cryptocurrencies configured.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

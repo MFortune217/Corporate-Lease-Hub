@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { cryptoCurrencies, documents, vendors } from "@/lib/mockData";
 import { 
   ShieldAlert, 
   CheckCircle2, 
@@ -19,30 +18,81 @@ import {
   Settings,
   Users
 } from "lucide-react";
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { CryptoCurrency, Document as DocumentType, Vendor, CorporateLease } from "@shared/schema";
 
 export default function Admin() {
   const { toast } = useToast();
-  const [cryptos, setCryptos] = useState(cryptoCurrencies);
 
-  const toggleCrypto = (id: string) => {
-    setCryptos(cryptos.map(c => 
-      c.id === id ? { ...c, enabled: !c.enabled } : c
-    ));
-    toast({
-      title: "Platform Setting Updated",
-      description: "Payment method availability has been changed for all users.",
-    });
+  const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
+    queryKey: ["/api/crypto"],
+  });
+
+  const { data: documentsList = [], isLoading: docsLoading } = useQuery<DocumentType[]>({
+    queryKey: ["/api/documents"],
+  });
+
+  const { data: vendorsList = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
+    queryKey: ["/api/vendors"],
+  });
+
+  const { data: leasesList = [], isLoading: leasesLoading } = useQuery<CorporateLease[]>({
+    queryKey: ["/api/leases"],
+  });
+
+  const toggleCryptoMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      await apiRequest("PATCH", `/api/crypto/${id}/toggle`, { enabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crypto"] });
+      toast({
+        title: "Platform Setting Updated",
+        description: "Payment method availability has been changed for all users.",
+      });
+    },
+  });
+
+  const updateDocMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      await apiRequest("PATCH", `/api/documents/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+    },
+  });
+
+  const toggleCrypto = (id: string, currentEnabled: boolean) => {
+    toggleCryptoMutation.mutate({ id, enabled: !currentEnabled });
   };
 
-  const handleDocumentAction = (action: 'approve' | 'reject') => {
+  const handleDocumentAction = (docId: number, action: 'approve' | 'reject') => {
+    const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
+    updateDocMutation.mutate({ id: docId, status: newStatus });
     toast({
       title: action === 'approve' ? "Document Approved" : "Document Rejected",
       description: action === 'approve' ? "Vendor has been notified." : "Request for revision sent.",
       variant: action === 'approve' ? "default" : "destructive"
     });
   };
+
+  const pendingDocs = documentsList.filter(d => d.status === "Pending" || d.status === "New" || d.status === "Review Needed");
+
+  const isLoading = cryptoLoading || docsLoading || vendorsLoading || leasesLoading;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <Navbar />
+        <div className="container py-10 flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground text-lg">Loading...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -78,7 +128,7 @@ export default function Admin() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">$124,500</div>
+                  <div className="text-3xl font-bold">${leasesList.reduce((acc, l) => acc + l.rent, 0).toLocaleString()}</div>
                   <p className="text-xs text-green-600 mt-1 flex items-center">
                     <ArrowUpRight className="h-3 w-3 mr-1" /> +15% this month
                   </p>
@@ -89,7 +139,7 @@ export default function Admin() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Active Leases</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">42</div>
+                  <div className="text-3xl font-bold">{leasesList.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">Across 8 cities</p>
                 </CardContent>
               </Card>
@@ -98,7 +148,7 @@ export default function Admin() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Pending Docs</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-amber-600">12</div>
+                  <div className="text-3xl font-bold text-amber-600">{pendingDocs.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">Requires review</p>
                 </CardContent>
               </Card>
@@ -107,7 +157,7 @@ export default function Admin() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Active Users</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">156</div>
+                  <div className="text-3xl font-bold">{vendorsList.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">
                     <Users className="h-3 w-3 inline mr-1" /> Customers & Owners
                   </p>
@@ -195,7 +245,7 @@ export default function Admin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cryptos.map((crypto) => (
+                    {cryptoList.map((crypto) => (
                       <TableRow key={crypto.id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
@@ -219,12 +269,19 @@ export default function Admin() {
                             <Switch 
                               id={`admin-crypto-${crypto.id}`}
                               checked={crypto.enabled}
-                              onCheckedChange={() => toggleCrypto(crypto.id)}
+                              onCheckedChange={() => toggleCrypto(crypto.id, crypto.enabled)}
                             />
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {cryptoList.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          No cryptocurrencies configured.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -239,38 +296,37 @@ export default function Admin() {
                </CardHeader>
                <CardContent>
                  <div className="space-y-4">
-                   {[
-                     { id: 1, type: "Vendor Insurance", user: "Sparkle Cleaners", status: "Review Needed", date: "Oct 14" },
-                     { id: 2, type: "Property Deed", user: "John Smith (Owner)", status: "Review Needed", date: "Oct 15" },
-                     { id: 3, type: "Business License", user: "FixIt Fast HVAC", status: "Review Needed", date: "Oct 16" },
-                   ].map((item) => (
+                   {pendingDocs.map((item) => (
                      <div key={item.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 border rounded-lg bg-white gap-4">
                        <div className="flex items-center gap-4">
                          <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
                            <FileText className="h-6 w-6" />
                          </div>
                          <div>
-                           <h4 className="font-bold">{item.type}</h4>
-                           <p className="text-sm text-muted-foreground">Submitted by: {item.user} • {item.date}</p>
+                           <h4 className="font-bold">{item.name}</h4>
+                           <p className="text-sm text-muted-foreground">Submitted by: {item.userName || "Unknown"} • {item.date}</p>
                          </div>
                        </div>
                        <div className="flex gap-2 w-full md:w-auto">
                          <Button 
                            variant="outline" 
                            className="flex-1 md:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
-                           onClick={() => handleDocumentAction('reject')}
+                           onClick={() => handleDocumentAction(item.id, 'reject')}
                          >
                            <XCircle className="mr-2 h-4 w-4" /> Reject
                          </Button>
                          <Button 
                            className="flex-1 md:flex-none bg-green-600 hover:bg-green-700"
-                           onClick={() => handleDocumentAction('approve')}
+                           onClick={() => handleDocumentAction(item.id, 'approve')}
                          >
                            <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
                          </Button>
                        </div>
                      </div>
                    ))}
+                   {pendingDocs.length === 0 && (
+                     <p className="text-muted-foreground text-center py-8">No pending documents to review.</p>
+                   )}
                  </div>
                </CardContent>
              </Card>
