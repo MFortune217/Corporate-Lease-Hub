@@ -12,7 +12,8 @@ import { useState, useEffect } from "react";
 const heroVideos = [
   "/videos/hero-background.mp4",
   "/videos/hero-lounge.mp4",
-  "/videos/hero-boardroom.mp4",
+  "/videos/hero-kitchen.mp4",
+  "/videos/hero-bedroom.mp4",
   "/videos/hero-interior.mp4"
 ];
 
