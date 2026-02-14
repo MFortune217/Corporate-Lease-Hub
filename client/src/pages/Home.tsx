@@ -7,7 +7,7 @@ import { properties } from "@/lib/mockData";
 import { Search, MapPin, Building, Building2, ShieldCheck, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const heroVideos = [
   "/videos/hero-background.mp4",
@@ -19,6 +19,15 @@ const heroVideos = [
 
 export default function Home() {
   const [currentVideo, setCurrentVideo] = useState(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (vid) {
+      vid.currentTime = 0;
+      vid.play().catch(() => {});
+    }
+  }, [currentVideo]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -43,6 +52,7 @@ export default function Home() {
             className="absolute inset-0 z-0"
           >
             <video 
+              ref={videoRef}
               autoPlay 
               loop 
               muted 
