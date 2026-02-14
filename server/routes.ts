@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
@@ -8,8 +8,19 @@ import {
   insertDocumentSchema,
   insertCryptoSchema,
   insertJobRequestSchema,
+  insertNotificationSchema,
+  type Notification,
 } from "@shared/schema";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+
+const sseClients: Response[] = [];
+
+function broadcastNotification(notification: Notification) {
+  const data = JSON.stringify(notification);
+  for (const client of sseClients) {
+    client.write(`data: ${data}\n\n`);
+  }
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -230,10 +241,69 @@ export async function registerRoutes(
         await storage.createJobRequest(j);
       }
 
+      const seedNotifications = [
+        { type: "payment_received", title: "Payment Received", message: "$4,200 lease payment received from TechCorp Inc. via ACH bank transfer.", portal: "owner", method: "ACH", amount: 4200, read: false },
+        { type: "payout_processed", title: "Payout Processed", message: "$450 payout sent to Sparkle Cleaners via debit card.", portal: "admin", method: "Card", amount: 450, read: false },
+        { type: "payment_received", title: "Payment Received", message: "$3,500 lease payment received from GlobalTech Ltd. via credit card.", portal: "customer", method: "Card", amount: 3500, read: false },
+        { type: "payout_requested", title: "Payout Requested", message: "$800 crypto payout to FixIt Fast HVAC via BTC is pending.", portal: "vendor", method: "BTC", amount: 800, read: false },
+        { type: "payment_failed", title: "Payment Failed", message: "ACH payment of $2,100 from Innovate Corp was returned. Retry needed.", portal: "admin", method: "ACH", amount: 2100, read: false },
+        { type: "payment_received", title: "Payment Confirmed", message: "$2,800 lease payment confirmed via Ethereum smart contract.", portal: "customer", method: "ETH", amount: 2800, read: true },
+      ];
+
+      for (const n of seedNotifications) {
+        await storage.createNotification(n);
+      }
+
       res.json({ message: "Seed data created successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  // SSE endpoint for real-time notifications
+  app.get("/api/notifications/stream", (req, res) => {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+    sseClients.push(res);
+    req.on("close", () => {
+      const idx = sseClients.indexOf(res);
+      if (idx !== -1) sseClients.splice(idx, 1);
+    });
+  });
+
+  // Notifications CRUD
+  app.get("/api/notifications", async (_req, res) => {
+    const notifs = await storage.getNotifications();
+    res.json(notifs);
+  });
+
+  app.get("/api/notifications/unread", async (_req, res) => {
+    const notifs = await storage.getUnreadNotifications();
+    res.json(notifs);
+  });
+
+  app.post("/api/notifications", async (req, res) => {
+    const parsed = insertNotificationSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const notification = await storage.createNotification(parsed.data);
+    broadcastNotification(notification);
+    res.status(201).json(notification);
+  });
+
+  app.patch("/api/notifications/:id/read", async (req, res) => {
+    const updated = await storage.markNotificationRead(Number(req.params.id));
+    if (!updated) return res.status(404).json({ message: "Notification not found" });
+    res.json(updated);
+  });
+
+  app.post("/api/notifications/read-all", async (_req, res) => {
+    await storage.markAllNotificationsRead();
+    res.json({ message: "All notifications marked as read" });
   });
 
   // Stripe Payment Routes
@@ -286,6 +356,19 @@ export async function registerRoutes(
         metadata: metadata || {},
       });
 
+      const methodLabel = paymentMethodType === "ach" ? "ACH" : paymentMethodType === "card" ? "Card" : paymentMethodType;
+      const portal = metadata?.portal || "customer";
+      const notification = await storage.createNotification({
+        type: "payment_initiated",
+        title: "Payment Initiated",
+        message: `$${amount.toLocaleString()} payment via ${methodLabel} is being processed.`,
+        portal,
+        method: methodLabel,
+        amount,
+        read: false,
+      });
+      broadcastNotification(notification);
+
       res.json({
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
@@ -297,13 +380,16 @@ export async function registerRoutes(
   });
 
   app.post("/api/stripe/create-payout", async (req, res) => {
+    const { amount, description, portal: reqPortal, method: reqMethod } = req.body;
+    const payoutPortal = reqPortal || "vendor";
+    const payoutMethod = reqMethod || "ACH";
+
+    if (!amount) {
+      return res.status(400).json({ message: "amount is required" });
+    }
+
     try {
       const stripe = await getUncachableStripeClient();
-      const { amount, description } = req.body;
-
-      if (!amount) {
-        return res.status(400).json({ message: "amount is required" });
-      }
 
       const transfer = await stripe.transfers.create({
         amount: Math.round(amount * 100),
@@ -312,9 +398,30 @@ export async function registerRoutes(
         description: description || "CorpLease Vendor Payout",
       } as any);
 
+      const notification = await storage.createNotification({
+        type: "payout_processed",
+        title: "Payout Processed",
+        message: description || `$${amount.toLocaleString()} payout has been processed via ${payoutMethod}.`,
+        portal: payoutPortal,
+        method: payoutMethod,
+        amount,
+        read: false,
+      });
+      broadcastNotification(notification);
+
       res.json({ transfer });
     } catch (error: any) {
       console.error("Payout error:", error.message);
+      const notification = await storage.createNotification({
+        type: "payout_requested",
+        title: "Payout Queued",
+        message: description || `$${amount.toLocaleString()} payout request has been queued.`,
+        portal: payoutPortal,
+        method: payoutMethod,
+        amount,
+        read: false,
+      });
+      broadcastNotification(notification);
       res.status(500).json({ message: error.message });
     }
   });

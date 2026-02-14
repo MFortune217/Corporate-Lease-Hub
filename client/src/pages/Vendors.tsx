@@ -84,17 +84,35 @@ export default function Vendors() {
       return;
     }
     setProcessing(true);
+    const methodLabel = withdrawMethod === "card" ? "Card" : withdrawMethod === "ach" ? "ACH" : selectedCrypto;
     try {
-      await fetch("/api/stripe/create-payout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount,
-          description: `Vendor payout to Sparkle Cleaners Inc. via ${withdrawMethod}`,
-        }),
-      });
+      if (withdrawMethod === "crypto") {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "payout_requested",
+            title: "Crypto Payout Requested",
+            message: `$${amount.toLocaleString()} payout via ${selectedCrypto} requested by Sparkle Cleaners Inc.`,
+            portal: "vendor",
+            method: selectedCrypto,
+            amount,
+            read: false,
+          }),
+        });
+      } else {
+        await fetch("/api/stripe/create-payout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount,
+            description: `Vendor payout to Sparkle Cleaners Inc. via ${methodLabel}`,
+            portal: "vendor",
+            method: methodLabel,
+          }),
+        });
+      }
       setShowWithdrawDialog(false);
-      const methodLabel = withdrawMethod === "card" ? "debit card" : withdrawMethod === "ach" ? "ACH bank transfer" : selectedCrypto;
       toast({
         title: "Payout Requested",
         description: `$${amount.toLocaleString()} payout via ${methodLabel} has been submitted for processing.`,

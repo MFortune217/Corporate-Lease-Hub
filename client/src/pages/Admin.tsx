@@ -100,17 +100,35 @@ export default function Admin() {
       return;
     }
     setProcessing(true);
+    const methodLabel = payoutMethod === "card" ? "Card" : payoutMethod === "ach" ? "ACH" : selectedCrypto;
     try {
-      await fetch("/api/stripe/create-payout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount,
-          description: `Admin payout to ${payoutRecipient} via ${payoutMethod}`,
-        }),
-      });
+      if (payoutMethod === "crypto") {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "payout_processed",
+            title: "Crypto Payout Initiated",
+            message: `$${amount.toLocaleString()} crypto payout to ${payoutRecipient} via ${selectedCrypto}.`,
+            portal: "admin",
+            method: selectedCrypto,
+            amount,
+            read: false,
+          }),
+        });
+      } else {
+        await fetch("/api/stripe/create-payout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount,
+            description: `Admin payout to ${payoutRecipient} via ${methodLabel}`,
+            portal: "admin",
+            method: methodLabel,
+          }),
+        });
+      }
       setShowPayoutDialog(false);
-      const methodLabel = payoutMethod === "card" ? "card" : payoutMethod === "ach" ? "ACH bank transfer" : selectedCrypto;
       toast({
         title: "Payout Processed",
         description: `$${amount.toLocaleString()} sent to ${payoutRecipient} via ${methodLabel}.`,

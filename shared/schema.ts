@@ -100,3 +100,19 @@ export const jobRequests = pgTable("job_requests", {
 export const insertJobRequestSchema = createInsertSchema(jobRequests).omit({ id: true });
 export type InsertJobRequest = z.infer<typeof insertJobRequestSchema>;
 export type JobRequest = typeof jobRequests.$inferSelect;
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  portal: text("portal").notNull(),
+  method: text("method"),
+  amount: real("amount"),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;

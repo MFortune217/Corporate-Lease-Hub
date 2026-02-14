@@ -31,7 +31,8 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 - **Framework**: Express 5 on Node.js with TypeScript (tsx for dev, esbuild for production)
 - **API Pattern**: RESTful JSON API under `/api/` prefix with standard CRUD operations
-- **Resources**: Properties, Corporate Leases, Vendors, Documents, Cryptocurrencies, Job Requests, Users
+- **Resources**: Properties, Corporate Leases, Vendors, Documents, Cryptocurrencies, Job Requests, Users, Notifications
+- **Real-time**: Server-Sent Events (SSE) for push notifications at `/api/notifications/stream`
 - **Validation**: Zod schemas generated from Drizzle table definitions via `drizzle-zod`
 - **Storage Layer**: `IStorage` interface with `DatabaseStorage` implementation, providing a clean abstraction over database operations
 - **Dev Server**: Vite dev server integrated as middleware in development; static file serving in production
@@ -49,6 +50,7 @@ Preferred communication style: Simple, everyday language.
   - `documents` — document tracking with status
   - `crypto_currencies` — cryptocurrency payment configuration (toggleable)
   - `job_requests` — maintenance/service job tracking for vendors
+  - `notifications` — real-time payment status notifications (type, title, message, portal, method, amount, read status)
 - **Schema Push**: Use `npm run db:push` (drizzle-kit push) to sync schema to database
 
 ### API Endpoints
@@ -59,9 +61,12 @@ All endpoints are prefixed with `/api/`:
 - `GET/POST /documents`, `PATCH /documents/:id`
 - `GET /crypto`, `POST /crypto`, `PATCH /crypto/:id/toggle`
 - `GET/POST /jobs`, `GET /jobs/vendor/:vendorId`, `PATCH /jobs/:id`
-- `POST /seed` — Seeds initial data (properties, leases, vendors, docs, crypto, jobs)
+- `GET /notifications/stream` — SSE endpoint for real-time push notifications
+- `GET/POST /notifications`, `GET /notifications/unread`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`
+- `POST /seed` — Seeds initial data (properties, leases, vendors, docs, crypto, jobs, notifications)
 
 ## Recent Changes
+- 2026-02-14: Added real-time notification system with SSE, notifications table, NotificationCenter component in Navbar, and payment event broadcasting
 - 2026-02-14: Integrated Stripe payments via Replit connector (ACH, credit/debit cards) for Owner and Customer portals
 - 2026-02-14: Added Stripe backend infrastructure (stripeClient.ts, webhookHandlers.ts, payment intent/payout routes)
 - 2026-02-14: Updated Owner Portal with vendor payment dialog (card/ACH via Stripe Elements) and payment method settings (traditional + crypto tabs)

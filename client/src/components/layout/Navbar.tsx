@@ -4,6 +4,7 @@ import { Building2, Menu, X, Wallet, Shield } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationCenter } from "./NotificationCenter";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -61,6 +62,7 @@ export function Navbar() {
           </Link>
 
           <div className="flex items-center gap-2 ml-4">
+            <NotificationCenter />
             <Button 
               variant={walletConnected ? "outline" : "secondary"} 
               size="sm"

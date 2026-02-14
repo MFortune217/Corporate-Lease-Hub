@@ -108,12 +108,27 @@ export default function Customers() {
     }
   };
 
-  const handleCryptoPayment = () => {
+  const handleCryptoPayment = async () => {
     setShowPayDialog(false);
     toast({
       title: "Crypto Payment Initiated",
       description: `Payment of $${totalRent.toLocaleString()} via ${selectedCrypto} submitted to smart contract.`,
     });
+    try {
+      await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "payment_initiated",
+          title: "Crypto Payment Sent",
+          message: `$${totalRent.toLocaleString()} payment via ${selectedCrypto} submitted to smart contract.`,
+          portal: "customer",
+          method: selectedCrypto,
+          amount: totalRent,
+          read: false,
+        }),
+      });
+    } catch {}
   };
 
   const openPayDialogWithMethod = (method: string) => {
