@@ -250,10 +250,23 @@ export async function registerRoutes(
   app.post("/api/stripe/create-payment-intent", async (req, res) => {
     try {
       const stripe = await getUncachableStripeClient();
-      const { amount, paymentMethodType, description, metadata } = req.body;
+      const { paymentMethodType, description, metadata } = req.body;
+      let { amount } = req.body;
 
       if (!amount || !paymentMethodType) {
         return res.status(400).json({ message: "amount and paymentMethodType are required" });
+      }
+
+      if (metadata?.type === "corporate_lease_payment") {
+        const leases = await storage.getLeases();
+        const serverTotal = leases.reduce((sum, l) => sum + l.rent, 0);
+        if (Math.abs(amount - serverTotal) > 0.01) {
+          amount = serverTotal;
+        }
+      }
+
+      if (amount <= 0 || amount > 999999) {
+        return res.status(400).json({ message: "Invalid payment amount" });
       }
 
       const paymentMethodTypes: string[] = [];

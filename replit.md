@@ -62,6 +62,11 @@ All endpoints are prefixed with `/api/`:
 - `POST /seed` — Seeds initial data (properties, leases, vendors, docs, crypto, jobs)
 
 ## Recent Changes
+- 2026-02-14: Integrated Stripe payments via Replit connector (ACH, credit/debit cards) for Owner and Customer portals
+- 2026-02-14: Added Stripe backend infrastructure (stripeClient.ts, webhookHandlers.ts, payment intent/payout routes)
+- 2026-02-14: Updated Owner Portal with vendor payment dialog (card/ACH via Stripe Elements) and payment method settings (traditional + crypto tabs)
+- 2026-02-14: Updated Customer Portal with Stripe checkout for ACH and card alongside crypto payments
+- 2026-02-14: Added server-side payment amount validation for corporate lease payments
 - 2026-02-13: Converted from prototype to full-stack app with PostgreSQL database
 - 2026-02-13: Implemented all database tables, storage layer (DatabaseStorage), and API routes
 - 2026-02-13: Connected all 4 frontend portals (Customers, Owners, Vendors, Admin) to real API endpoints using TanStack React Query
