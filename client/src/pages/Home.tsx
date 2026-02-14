@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { properties } from "@/lib/mockData";
 import { Search, MapPin, Building, Building2, ShieldCheck, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
 
 const heroVideos = [
   "/videos/hero-background.mp4",
@@ -19,28 +19,13 @@ const heroVideos = [
 
 export default function Home() {
   const [currentVideo, setCurrentVideo] = useState(0);
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-
-  const switchTo = useCallback((index: number) => {
-    const vid = videoRefs.current[index];
-    if (vid) {
-      vid.currentTime = 0;
-      vid.play().catch(() => {});
-    }
-    setCurrentVideo(index);
-  }, []);
-
-  useEffect(() => {
-    const vid = videoRefs.current[0];
-    if (vid) vid.play().catch(() => {});
-  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      switchTo((currentVideo + 1) % heroVideos.length);
+      setCurrentVideo((prev) => (prev + 1) % heroVideos.length);
     }, 10000);
     return () => clearInterval(timer);
-  }, [currentVideo, switchTo]);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
@@ -48,27 +33,26 @@ export default function Home() {
       
       {/* Hero Section */}
       <section className="relative h-[700px] flex items-center justify-center overflow-hidden bg-black">
-        {heroVideos.map((src, index) => (
-          <div
-            key={src}
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={currentVideo}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5 }}
             className="absolute inset-0 z-0"
-            style={{
-              opacity: index === currentVideo ? 1 : 0,
-              transition: "opacity 1.8s cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
           >
-            <video
-              ref={(el) => { videoRefs.current[index] = el; }}
-              loop
-              muted
+            <video 
+              autoPlay 
+              loop 
+              muted 
               playsInline
-              preload="auto"
               className="w-full h-full object-cover opacity-80"
             >
-              <source src={src} type="video/mp4" />
+              <source src={heroVideos[currentVideo]} type="video/mp4" />
             </video>
-          </div>
-        ))}
+          </motion.div>
+        </AnimatePresence>
         
         <div className="absolute inset-0 z-0 bg-black/40" />
         
@@ -121,7 +105,7 @@ export default function Home() {
             {heroVideos.map((_, index) => (
               <button
                 key={index}
-                onClick={() => switchTo(index)}
+                onClick={() => setCurrentVideo(index)}
                 className={`w-2 h-2 rounded-full transition-all duration-300 ${
                   index === currentVideo ? "bg-white w-6" : "bg-white/40 hover:bg-white/60"
                 }`}
