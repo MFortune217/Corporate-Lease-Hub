@@ -9,6 +9,7 @@ import {
   insertCryptoSchema,
   insertJobRequestSchema,
 } from "@shared/schema";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -231,6 +232,76 @@ export async function registerRoutes(
 
       res.json({ message: "Seed data created successfully" });
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Stripe Payment Routes
+
+  app.get("/api/stripe/publishable-key", async (_req, res) => {
+    try {
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (error: any) {
+      res.status(500).json({ message: "Stripe not configured" });
+    }
+  });
+
+  app.post("/api/stripe/create-payment-intent", async (req, res) => {
+    try {
+      const stripe = await getUncachableStripeClient();
+      const { amount, paymentMethodType, description, metadata } = req.body;
+
+      if (!amount || !paymentMethodType) {
+        return res.status(400).json({ message: "amount and paymentMethodType are required" });
+      }
+
+      const paymentMethodTypes: string[] = [];
+      if (paymentMethodType === "card") {
+        paymentMethodTypes.push("card");
+      } else if (paymentMethodType === "ach") {
+        paymentMethodTypes.push("us_bank_account");
+      } else {
+        paymentMethodTypes.push(paymentMethodType);
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100),
+        currency: "usd",
+        payment_method_types: paymentMethodTypes,
+        description: description || "CorpLease Payment",
+        metadata: metadata || {},
+      });
+
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+      });
+    } catch (error: any) {
+      console.error("Payment intent error:", error.message);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/stripe/create-payout", async (req, res) => {
+    try {
+      const stripe = await getUncachableStripeClient();
+      const { amount, description } = req.body;
+
+      if (!amount) {
+        return res.status(400).json({ message: "amount is required" });
+      }
+
+      const transfer = await stripe.transfers.create({
+        amount: Math.round(amount * 100),
+        currency: "usd",
+        destination: "default",
+        description: description || "CorpLease Vendor Payout",
+      } as any);
+
+      res.json({ transfer });
+    } catch (error: any) {
+      console.error("Payout error:", error.message);
       res.status(500).json({ message: error.message });
     }
   });
