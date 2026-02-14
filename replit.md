@@ -66,6 +66,7 @@ All endpoints are prefixed with `/api/`:
 - `POST /seed` — Seeds initial data (properties, leases, vendors, docs, crypto, jobs, notifications)
 
 ## Recent Changes
+- 2026-02-14: Added portal auth pages (login/register with company fields) at /customers, /owners, /vendors; dashboards moved to /*/dashboard paths; bcrypt password hashing
 - 2026-02-14: Added real-time notification system with SSE, notifications table, NotificationCenter component in Navbar, and payment event broadcasting
 - 2026-02-14: Integrated Stripe payments via Replit connector (ACH, credit/debit cards) for Owner and Customer portals
 - 2026-02-14: Added Stripe backend infrastructure (stripeClient.ts, webhookHandlers.ts, payment intent/payout routes)

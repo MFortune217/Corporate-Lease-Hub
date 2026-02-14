@@ -9,9 +9,11 @@ import {
   insertCryptoSchema,
   insertJobRequestSchema,
   insertNotificationSchema,
+  insertUserSchema,
   type Notification,
 } from "@shared/schema";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import bcrypt from "bcryptjs";
 
 const sseClients: Response[] = [];
 
@@ -26,6 +28,43 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // Auth
+  app.post("/api/auth/register", async (req, res) => {
+    const parsed = insertUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors.map(e => e.message).join(", ") });
+    }
+    const { username, password, role, companyName, email, phone } = parsed.data;
+    if (!companyName || !email) {
+      return res.status(400).json({ message: "Company name and email are required" });
+    }
+    const existing = await storage.getUserByUsername(username);
+    if (existing) {
+      return res.status(409).json({ message: "Username already exists" });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await storage.createUser({ username, password: hashedPassword, role, companyName, email, phone: phone || null });
+    const { password: _, ...safeUser } = user;
+    res.status(201).json(safeUser);
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password are required" });
+    }
+    const user = await storage.getUserByUsername(username);
+    if (!user) {
+      return res.status(401).json({ message: "Invalid username or password" });
+    }
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(401).json({ message: "Invalid username or password" });
+    }
+    const { password: _, ...safeUser } = user;
+    res.json(safeUser);
+  });
 
   // Properties
   app.get("/api/properties", async (_req, res) => {

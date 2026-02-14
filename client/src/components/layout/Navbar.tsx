@@ -72,7 +72,9 @@ export function Navbar() {
               <Wallet className="mr-2 h-4 w-4" />
               {walletConnected ? "0x12...89A" : "Connect Wallet"}
             </Button>
-            <Button size="sm">Log In</Button>
+            <Link href="/customers">
+              <Button size="sm" data-testid="button-login">Log In</Button>
+            </Link>
           </div>
         </div>
 
@@ -110,7 +112,9 @@ export function Navbar() {
                 <Button variant="secondary" onClick={connectWallet}>
                    <Wallet className="mr-2 h-4 w-4" /> Connect Wallet
                 </Button>
-                <Button className="w-full">Log In</Button>
+                <Link href="/customers" onClick={() => setIsOpen(false)}>
+                  <Button className="w-full">Log In</Button>
+                </Link>
               </div>
             </div>
           </SheetContent>

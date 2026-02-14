@@ -9,14 +9,18 @@ import Customers from "@/pages/Customers";
 import Owners from "@/pages/Owners";
 import Vendors from "@/pages/Vendors";
 import Admin from "@/pages/Admin";
+import PortalAuth from "@/pages/PortalAuth";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/customers" component={Customers} />
-      <Route path="/owners" component={Owners} />
-      <Route path="/vendors" component={Vendors} />
+      <Route path="/customers">{() => <PortalAuth portalType="customer" />}</Route>
+      <Route path="/owners">{() => <PortalAuth portalType="owner" />}</Route>
+      <Route path="/vendors">{() => <PortalAuth portalType="vendor" />}</Route>
+      <Route path="/customers/dashboard" component={Customers} />
+      <Route path="/owners/dashboard" component={Owners} />
+      <Route path="/vendors/dashboard" component={Vendors} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
