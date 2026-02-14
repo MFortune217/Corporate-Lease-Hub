@@ -23,7 +23,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentVideo((prev) => (prev + 1) % heroVideos.length);
-    }, 10000);
+    }, 8000);
     return () => clearInterval(timer);
   }, []);
 
