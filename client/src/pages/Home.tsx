@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { properties } from "@/lib/mockData";
 import { Search, MapPin, Building, Building2, ShieldCheck, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const heroVideos = [
   "/videos/hero-background.mp4",
@@ -19,15 +19,25 @@ const heroVideos = [
 
 export default function Home() {
   const [currentVideo, setCurrentVideo] = useState(0);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+
+  const setVideoRef = useCallback((el: HTMLVideoElement | null, idx: number) => {
+    videoRefs.current[idx] = el;
+    if (el) {
+      el.playbackRate = 0.7;
+      el.play().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
-    const vid = videoRef.current;
-    if (vid) {
-      vid.currentTime = 0;
-      vid.playbackRate = 0.7;
-      vid.play().catch(() => {});
-    }
+    videoRefs.current.forEach((vid, idx) => {
+      if (!vid) return;
+      if (idx === currentVideo) {
+        vid.currentTime = 0;
+        vid.playbackRate = 0.7;
+        vid.play().catch(() => {});
+      }
+    });
   }, [currentVideo]);
 
   useEffect(() => {
@@ -43,27 +53,28 @@ export default function Home() {
       
       {/* Hero Section */}
       <section className="relative h-[700px] flex items-center justify-center overflow-hidden bg-black">
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            key={currentVideo}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2.5, ease: "easeInOut" }}
+        {heroVideos.map((src, idx) => (
+          <div
+            key={src}
             className="absolute inset-0 z-0"
+            style={{
+              opacity: idx === currentVideo ? 1 : 0,
+              transition: "opacity 2.5s ease-in-out",
+            }}
           >
-            <video 
-              ref={videoRef}
-              autoPlay 
-              loop 
-              muted 
+            <video
+              ref={(el) => setVideoRef(el, idx)}
+              autoPlay
+              loop
+              muted
               playsInline
+              preload="auto"
               className="w-full h-full object-cover opacity-80"
             >
-              <source src={heroVideos[currentVideo]} type="video/mp4" />
+              <source src={src} type="video/mp4" />
             </video>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        ))}
         
         <div className="absolute inset-0 z-0 bg-black/40" />
         
