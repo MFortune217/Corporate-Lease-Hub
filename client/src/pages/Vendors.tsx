@@ -14,10 +14,12 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/lib/authContext";
 import type { JobRequest, Document as DocumentType, CryptoCurrency } from "@shared/schema";
 
 export default function Vendors() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [withdrawMethod, setWithdrawMethod] = useState("ach");
   const [selectedCrypto, setSelectedCrypto] = useState("");
@@ -154,7 +156,7 @@ export default function Vendors() {
              </div>
              <div>
                 <h1 className="text-3xl font-display font-bold text-primary" data-testid="text-vendor-title">Vendor Portal</h1>
-                <p className="text-muted-foreground">Sparkle Cleaners Inc.</p>
+                <p className="text-muted-foreground">{user?.companyName || "Your Company"}</p>
              </div>
           </div>
           <div className="flex gap-3">

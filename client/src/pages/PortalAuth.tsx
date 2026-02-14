@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building, Building2, ShieldCheck, Eye, EyeOff, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/authContext";
 import { motion } from "framer-motion";
 
 type PortalType = "customer" | "owner" | "vendor";
@@ -79,6 +80,7 @@ export default function PortalAuth({ portalType }: PortalAuthProps) {
   const Icon = config.icon;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -108,6 +110,7 @@ export default function PortalAuth({ portalType }: PortalAuthProps) {
         toast({ title: "Login Failed", description: data.message, variant: "destructive" });
         return;
       }
+      login(data);
       toast({ title: "Welcome back!", description: `Signed in as ${data.companyName || data.username}` });
       setLocation(config.dashboardPath);
     } catch {
@@ -142,6 +145,7 @@ export default function PortalAuth({ portalType }: PortalAuthProps) {
         toast({ title: "Registration Failed", description: data.message, variant: "destructive" });
         return;
       }
+      login(data);
       toast({ title: "Account Created!", description: `Welcome to CorpLease, ${data.companyName}!` });
       setLocation(config.dashboardPath);
     } catch {
@@ -261,6 +265,11 @@ export default function PortalAuth({ portalType }: PortalAuthProps) {
                         {loginLoading ? "Signing in..." : "Sign In"}
                         {!loginLoading && <ArrowRight className="ml-2 h-4 w-4" />}
                       </Button>
+                      <div className="text-center pt-2">
+                        <Link href="/password-reset" className="text-sm text-primary hover:underline" data-testid="link-forgot-password">
+                          Forgot your password?
+                        </Link>
+                      </div>
                     </form>
                   </CardContent>
                 </Card>

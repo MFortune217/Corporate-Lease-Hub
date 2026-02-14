@@ -13,6 +13,7 @@ import { Search, Wallet, Users, Building, PlusCircle, MoreHorizontal, CreditCard
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/authContext";
 import type { CorporateLease, Property, CryptoCurrency } from "@shared/schema";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -74,6 +75,7 @@ function CheckoutForm({ amount, onSuccess, onCancel }: { amount: number; onSucce
 
 export default function Customers() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [showPayDialog, setShowPayDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("ach");
   const [selectedCrypto, setSelectedCrypto] = useState("");
@@ -193,7 +195,7 @@ export default function Customers() {
               <Building className="h-8 w-8 text-primary" />
               <h1 className="text-3xl font-display font-bold text-primary" data-testid="text-customer-title">Corporate Dashboard</h1>
             </div>
-            <p className="text-muted-foreground">Manage employee housing, leases, and consolidated billing.</p>
+            <p className="text-muted-foreground">{user?.companyName || "Your Company"} — Manage employee housing, leases, and consolidated billing.</p>
           </div>
           <div className="flex gap-3">
              <Button variant="outline" data-testid="button-manage-team"><Users className="mr-2 h-4 w-4" /> Manage Team</Button>

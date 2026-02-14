@@ -3,7 +3,6 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UploadCloud, Globe, Bitcoin, Settings, CreditCard, Landmark, Wallet, CheckCircle2 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/authContext";
 import type { Property, Vendor, CryptoCurrency } from "@shared/schema";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -80,6 +79,7 @@ function VendorPaymentForm({ amount, vendorName, onSuccess, onCancel }: { amount
 
 export default function Owners() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [scraping, setScraping] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [payVendorDialog, setPayVendorDialog] = useState(false);
@@ -104,19 +104,6 @@ export default function Owners() {
     queryKey: ["/api/crypto"],
   });
 
-  const toggleCryptoMutation = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      await apiRequest("PATCH", `/api/crypto/${id}/toggle`, { enabled });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/crypto"] });
-      toast({
-        title: "Settings Updated",
-        description: "Payment preferences saved.",
-      });
-    },
-  });
-
   const handleScrape = () => {
     if (!websiteUrl) return;
     setScraping(true);
@@ -127,10 +114,6 @@ export default function Owners() {
         description: "3 new properties have been added to your draft listings.",
       });
     }, 2000);
-  };
-
-  const toggleCrypto = (id: string, currentEnabled: boolean) => {
-    toggleCryptoMutation.mutate({ id, enabled: !currentEnabled });
   };
 
   const openPayVendor = useCallback(async (vendor: Vendor, method: "card" | "ach") => {
@@ -185,7 +168,7 @@ export default function Owners() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-display font-bold text-primary" data-testid="text-owner-title">Owner Dashboard</h1>
-            <p className="text-muted-foreground">Manage properties, listings, and vendor payments.</p>
+            <p className="text-muted-foreground">{user?.companyName || "Your Company"} — Manage properties, listings, and vendor payments.</p>
           </div>
           <Button variant="outline" data-testid="button-account-settings"><Settings className="mr-2 h-4 w-4" /> Account Settings</Button>
         </div>
@@ -440,14 +423,9 @@ export default function Owners() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor={`crypto-${crypto.id}`} className="sr-only">Toggle {crypto.name}</Label>
-                          <Switch 
-                            id={`crypto-${crypto.id}`}
-                            checked={crypto.enabled}
-                            onCheckedChange={() => toggleCrypto(crypto.id, crypto.enabled)}
-                          />
-                        </div>
+                        <Badge variant={crypto.enabled ? "default" : "secondary"}>
+                          {crypto.enabled ? "Enabled" : "Disabled"}
+                        </Badge>
                       </div>
                     ))}
                     {cryptoList.length === 0 && (

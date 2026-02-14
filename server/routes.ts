@@ -66,6 +66,39 @@ export async function registerRoutes(
     res.json(safeUser);
   });
 
+  app.post("/api/auth/request-reset", async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    const user = await storage.getUserByEmail(email);
+    if (!user) {
+      return res.json({ message: "If an account exists with that email, a reset code has been sent." });
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiry = new Date(Date.now() + 15 * 60 * 1000);
+    await storage.updateUser(user.id, { resetCode: code, resetCodeExpiry: expiry });
+    console.log(`[Password Reset] Code for ${email}: ${code}`);
+    res.json({ message: "If an account exists with that email, a reset code has been sent." });
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: "Email, code, and new password are required" });
+    }
+    const user = await storage.getUserByEmail(email);
+    if (!user || user.resetCode !== code) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
+    if (user.resetCodeExpiry && new Date() > user.resetCodeExpiry) {
+      return res.status(400).json({ message: "Reset code has expired. Please request a new one." });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await storage.updateUser(user.id, { password: hashedPassword, resetCode: null, resetCodeExpiry: null });
+    res.json({ message: "Password has been reset successfully" });
+  });
+
   // Properties
   app.get("/api/properties", async (_req, res) => {
     const props = await storage.getProperties();
