@@ -38,7 +38,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setInterval(() => {
       switchTo((currentVideo + 1) % heroVideos.length);
-    }, 8000);
+    }, 10000);
     return () => clearInterval(timer);
   }, [currentVideo, switchTo]);
 
