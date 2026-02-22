@@ -13,16 +13,8 @@ import {
   type Notification,
 } from "@shared/schema";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { broadcastNotification, addSSEClient, removeSSEClient } from "./notifications";
 import bcrypt from "bcryptjs";
-
-const sseClients: Response[] = [];
-
-function broadcastNotification(notification: Notification) {
-  const data = JSON.stringify(notification);
-  for (const client of sseClients) {
-    client.write(`data: ${data}\n\n`);
-  }
-}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -341,10 +333,9 @@ export async function registerRoutes(
       "X-Accel-Buffering": "no",
     });
     res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
-    sseClients.push(res);
+    addSSEClient(res);
     req.on("close", () => {
-      const idx = sseClients.indexOf(res);
-      if (idx !== -1) sseClients.splice(idx, 1);
+      removeSSEClient(res);
     });
   });
 

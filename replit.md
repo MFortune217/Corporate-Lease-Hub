@@ -68,7 +68,8 @@ All endpoints are prefixed with `/api/`:
 ## Recent Changes
 - 2026-02-14: Added portal auth pages (login/register with company fields) at /customers, /owners, /vendors; dashboards moved to /*/dashboard paths; bcrypt password hashing
 - 2026-02-14: Added real-time notification system with SSE, notifications table, NotificationCenter component in Navbar, and payment event broadcasting
-- 2026-02-14: Integrated Stripe payments via Replit connector (ACH, credit/debit cards) for Owner and Customer portals
+- 2026-02-22: Rewrote Stripe integration for Render deployment — replaced Replit connector with standard env vars (STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET), removed stripe-replit-sync dependency
+- 2026-02-14: Integrated Stripe payments (ACH, credit/debit cards) for Owner and Customer portals
 - 2026-02-14: Added Stripe backend infrastructure (stripeClient.ts, webhookHandlers.ts, payment intent/payout routes)
 - 2026-02-14: Updated Owner Portal with vendor payment dialog (card/ACH via Stripe Elements) and payment method settings (traditional + crypto tabs)
 - 2026-02-14: Updated Customer Portal with Stripe checkout for ACH and card alongside crypto payments
@@ -101,6 +102,15 @@ All endpoints are prefixed with `/api/`:
 - **embla-carousel-react** — Carousel component
 - **react-day-picker** — Calendar/date picker
 - **react-hook-form** + **@hookform/resolvers** — Form handling with Zod validation
+
+### Stripe Integration
+- **stripe** — Stripe Node.js SDK for payment processing
+- **@stripe/react-stripe-js** + **@stripe/stripe-js** — Frontend Stripe Elements integration
+- Required environment variables for deployment:
+  - `STRIPE_SECRET_KEY` — Stripe secret API key
+  - `STRIPE_PUBLISHABLE_KEY` — Stripe publishable API key
+  - `STRIPE_WEBHOOK_SECRET` — Stripe webhook signing secret (for verifying webhook events)
+- Webhook endpoint: `POST /api/stripe/webhook` (must be registered in Stripe Dashboard)
 
 ### Backend Libraries
 - **express** v5 — HTTP server framework

@@ -2,8 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { runMigrations } from 'stripe-replit-sync';
-import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
 
 const app = express();
@@ -15,40 +13,31 @@ declare module "http" {
   }
 }
 
-// Stripe initialization
-async function initStripe() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    console.warn('DATABASE_URL not set, skipping Stripe init');
-    return;
+// Stripe initialization check
+function checkStripeConfig() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasSecret = !!process.env.STRIPE_SECRET_KEY;
+  const hasPublishable = !!process.env.STRIPE_PUBLISHABLE_KEY;
+  const hasWebhookSecret = !!process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (isProduction && (!hasSecret || !hasPublishable)) {
+    console.error('FATAL: STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY must be set in production.');
+    process.exit(1);
   }
 
-  try {
-    console.log('Initializing Stripe schema...');
-    await runMigrations({ databaseUrl } as any);
-    console.log('Stripe schema ready');
-
-    const stripeSync = await getStripeSync();
-
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
-    try {
-      const result = await stripeSync.findOrCreateManagedWebhook(
-        `${webhookBaseUrl}/api/stripe/webhook`
-      );
-      console.log('Webhook configured:', JSON.stringify(result).slice(0, 200));
-    } catch (whErr: any) {
-      console.warn('Webhook setup skipped:', whErr.message);
+  if (hasSecret && hasPublishable) {
+    console.log('Stripe configured with API keys');
+    if (hasWebhookSecret) {
+      console.log('Stripe webhook secret configured');
+    } else if (isProduction) {
+      console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set in production - webhook events cannot be verified');
     }
-
-    stripeSync.syncBackfill()
-      .then(() => console.log('Stripe data synced'))
-      .catch((err: any) => console.error('Error syncing Stripe data:', err));
-  } catch (error) {
-    console.error('Failed to initialize Stripe:', error);
+  } else {
+    console.warn('Stripe API keys not configured. Set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY for payment processing.');
   }
 }
 
-await initStripe();
+checkStripeConfig();
 
 // Stripe webhook route BEFORE express.json() - needs raw Buffer
 app.post(
