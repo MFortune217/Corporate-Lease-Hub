@@ -3,7 +3,8 @@ import { Bell, CreditCard, Landmark, Bitcoin, DollarSign, CheckCircle2, AlertCir
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
+import { useAuth } from "@/lib/authContext";
 import type { Notification } from "@shared/schema";
 
 function getMethodIcon(method: string | null) {
@@ -53,10 +54,13 @@ function timeAgo(date: string | Date) {
 export function NotificationCenter() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated, token } = useAuth();
 
   const { data: allNotifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
-    refetchInterval: 10000,
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchInterval: isAuthenticated ? 10000 : false,
+    enabled: isAuthenticated,
   });
 
   const markReadMutation = useMutation({
@@ -81,6 +85,14 @@ export function NotificationCenter() {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      if (esRef.current) {
+        esRef.current.close();
+        esRef.current = null;
+      }
+      return;
+    }
+
     let mounted = true;
 
     function connect() {
@@ -116,7 +128,7 @@ export function NotificationCenter() {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (esRef.current) esRef.current.close();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
