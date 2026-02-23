@@ -3,12 +3,28 @@ import { pgTable, text, varchar, integer, boolean, real, timestamp, serial } fro
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true });
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type Company = typeof companies.$inferSelect;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("customer"),
+  companyId: integer("company_id"),
   companyName: text("company_name"),
+  companyRole: text("company_role").notNull().default("admin"),
   email: text("email"),
   phone: text("phone"),
   resetCode: text("reset_code"),
@@ -30,6 +46,7 @@ export const properties = pgTable("properties", {
   baths: real("baths").notNull(),
   sqft: integer("sqft").notNull(),
   ownerId: integer("owner_id"),
+  companyId: integer("company_id"),
   status: text("status").notNull().default("available"),
 });
 
@@ -60,6 +77,7 @@ export const vendors = pgTable("vendors", {
   service: text("service").notNull(),
   rating: real("rating").notNull().default(0),
   status: text("status").notNull().default("Pending Docs"),
+  companyId: integer("company_id"),
 });
 
 export const insertVendorSchema = createInsertSchema(vendors).omit({ id: true });
@@ -74,6 +92,7 @@ export const documents = pgTable("documents", {
   type: text("type").notNull().default("general"),
   userId: integer("user_id"),
   userName: text("user_name"),
+  companyId: integer("company_id"),
 });
 
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true });
@@ -100,6 +119,7 @@ export const jobRequests = pgTable("job_requests", {
   dueDate: text("due_date"),
   status: text("status").notNull().default("pending"),
   propertyId: integer("property_id"),
+  companyId: integer("company_id"),
 });
 
 export const insertJobRequestSchema = createInsertSchema(jobRequests).omit({ id: true });
@@ -115,6 +135,7 @@ export const notifications = pgTable("notifications", {
   method: text("method"),
   amount: real("amount"),
   read: boolean("read").notNull().default(false),
+  companyId: integer("company_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

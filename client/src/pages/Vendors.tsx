@@ -14,7 +14,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useAuth } from "@/lib/authContext";
+import { useAuth, authFetch } from "@/lib/authContext";
 import type { JobRequest, Document as DocumentType, CryptoCurrency } from "@shared/schema";
 
 export default function Vendors() {
@@ -28,10 +28,18 @@ export default function Vendors() {
 
   const { data: jobs = [], isLoading: jobsLoading } = useQuery<JobRequest[]>({
     queryKey: ["/api/jobs"],
+    queryFn: async () => {
+      const res = await authFetch("/api/jobs");
+      return res.json();
+    },
   });
 
   const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
     queryKey: ["/api/crypto"],
+    queryFn: async () => {
+      const res = await authFetch("/api/crypto");
+      return res.json();
+    },
   });
 
   const updateJobMutation = useMutation({
@@ -89,7 +97,7 @@ export default function Vendors() {
     const methodLabel = withdrawMethod === "card" ? "Card" : withdrawMethod === "ach" ? "ACH" : selectedCrypto;
     try {
       if (withdrawMethod === "crypto") {
-        await fetch("/api/notifications", {
+        await authFetch("/api/notifications", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -103,7 +111,7 @@ export default function Vendors() {
           }),
         });
       } else {
-        await fetch("/api/stripe/create-payout", {
+        await authFetch("/api/stripe/create-payout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -12,7 +12,7 @@ import { UploadCloud, Globe, Bitcoin, Settings, CreditCard, Landmark, Wallet, Ch
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/lib/authContext";
+import { useAuth, authFetch } from "@/lib/authContext";
 import type { Property, Vendor, CryptoCurrency } from "@shared/schema";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -21,7 +21,7 @@ let stripePromise: Promise<Stripe | null> | null = null;
 
 function getStripePromise() {
   if (!stripePromise) {
-    stripePromise = fetch("/api/stripe/publishable-key")
+    stripePromise = authFetch("/api/stripe/publishable-key")
       .then((res) => res.json())
       .then((data) => loadStripe(data.publishableKey))
       .catch(() => null);
@@ -94,14 +94,29 @@ export default function Owners() {
 
   const { data: propertiesList = [], isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
+    queryFn: async () => {
+      const res = await authFetch("/api/properties");
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
   });
 
   const { data: vendorsList = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
+    queryFn: async () => {
+      const res = await authFetch("/api/vendors");
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
   });
 
   const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
     queryKey: ["/api/crypto"],
+    queryFn: async () => {
+      const res = await authFetch("/api/crypto");
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
   });
 
   const handleScrape = () => {
@@ -123,7 +138,7 @@ export default function Owners() {
     setPayVendorDialog(true);
 
     try {
-      const res = await fetch("/api/stripe/create-payment-intent", {
+      const res = await authFetch("/api/stripe/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

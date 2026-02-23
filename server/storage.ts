@@ -1,5 +1,6 @@
 import {
   type User, type InsertUser,
+  type Company, type InsertCompany,
   type Property, type InsertProperty,
   type CorporateLease, type InsertLease,
   type Vendor, type InsertVendor,
@@ -7,10 +8,10 @@ import {
   type CryptoCurrency, type InsertCrypto,
   type JobRequest, type InsertJobRequest,
   type Notification, type InsertNotification,
-  users, properties, corporateLeases, vendors, documents, cryptoCurrencies, jobRequests, notifications,
+  users, companies, properties, corporateLeases, vendors, documents, cryptoCurrencies, jobRequests, notifications,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -19,40 +20,46 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, data: Partial<InsertUser> & { resetCode?: string | null; resetCodeExpiry?: Date | null; }): Promise<User | undefined>;
 
-  getProperties(): Promise<Property[]>;
-  getProperty(id: number): Promise<Property | undefined>;
+  getCompany(id: number): Promise<Company | undefined>;
+  getCompanyByName(name: string): Promise<Company | undefined>;
+  getCompanyByStripeCustomerId(stripeCustomerId: string): Promise<Company | undefined>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  updateCompany(id: number, data: Partial<InsertCompany>): Promise<Company | undefined>;
+
+  getProperties(companyId?: number): Promise<Property[]>;
+  getProperty(id: number, companyId?: number): Promise<Property | undefined>;
   createProperty(property: InsertProperty): Promise<Property>;
-  updateProperty(id: number, data: Partial<InsertProperty>): Promise<Property | undefined>;
-  deleteProperty(id: number): Promise<void>;
+  updateProperty(id: number, data: Partial<InsertProperty>, companyId?: number): Promise<Property | undefined>;
+  deleteProperty(id: number, companyId?: number): Promise<void>;
 
-  getLeases(): Promise<CorporateLease[]>;
-  getLease(id: number): Promise<CorporateLease | undefined>;
+  getLeases(companyId?: number): Promise<CorporateLease[]>;
+  getLease(id: number, companyId?: number): Promise<CorporateLease | undefined>;
   createLease(lease: InsertLease): Promise<CorporateLease>;
-  updateLease(id: number, data: Partial<InsertLease>): Promise<CorporateLease | undefined>;
+  updateLease(id: number, data: Partial<InsertLease>, companyId?: number): Promise<CorporateLease | undefined>;
 
-  getVendors(): Promise<Vendor[]>;
-  getVendor(id: number): Promise<Vendor | undefined>;
+  getVendors(companyId?: number): Promise<Vendor[]>;
+  getVendor(id: number, companyId?: number): Promise<Vendor | undefined>;
   createVendor(vendor: InsertVendor): Promise<Vendor>;
-  updateVendor(id: number, data: Partial<InsertVendor>): Promise<Vendor | undefined>;
+  updateVendor(id: number, data: Partial<InsertVendor>, companyId?: number): Promise<Vendor | undefined>;
 
-  getDocuments(): Promise<Document[]>;
+  getDocuments(companyId?: number): Promise<Document[]>;
   createDocument(doc: InsertDocument): Promise<Document>;
-  updateDocument(id: number, data: Partial<InsertDocument>): Promise<Document | undefined>;
+  updateDocument(id: number, data: Partial<InsertDocument>, companyId?: number): Promise<Document | undefined>;
 
   getCryptoCurrencies(): Promise<CryptoCurrency[]>;
   upsertCrypto(crypto: InsertCrypto): Promise<CryptoCurrency>;
   toggleCrypto(id: string, enabled: boolean): Promise<CryptoCurrency | undefined>;
 
-  getJobRequests(): Promise<JobRequest[]>;
-  getJobRequestsByVendor(vendorId: number): Promise<JobRequest[]>;
+  getJobRequests(companyId?: number): Promise<JobRequest[]>;
+  getJobRequestsByVendor(vendorId: number, companyId?: number): Promise<JobRequest[]>;
   createJobRequest(job: InsertJobRequest): Promise<JobRequest>;
-  updateJobRequest(id: number, data: Partial<InsertJobRequest>): Promise<JobRequest | undefined>;
+  updateJobRequest(id: number, data: Partial<InsertJobRequest>, companyId?: number): Promise<JobRequest | undefined>;
 
-  getNotifications(): Promise<Notification[]>;
-  getUnreadNotifications(): Promise<Notification[]>;
+  getNotifications(companyId?: number): Promise<Notification[]>;
+  getUnreadNotifications(companyId?: number): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
-  markNotificationRead(id: number): Promise<Notification | undefined>;
-  markAllNotificationsRead(): Promise<void>;
+  markNotificationRead(id: number, companyId?: number): Promise<Notification | undefined>;
+  markAllNotificationsRead(companyId?: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -81,11 +88,43 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getProperties(): Promise<Property[]> {
+  async getCompany(id: number): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company;
+  }
+
+  async getCompanyByName(name: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.name, name));
+    return company;
+  }
+
+  async getCompanyByStripeCustomerId(stripeCustomerId: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.stripeCustomerId, stripeCustomerId));
+    return company;
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    const [created] = await db.insert(companies).values(company).returning();
+    return created;
+  }
+
+  async updateCompany(id: number, data: Partial<InsertCompany>): Promise<Company | undefined> {
+    const [updated] = await db.update(companies).set(data).where(eq(companies.id, id)).returning();
+    return updated;
+  }
+
+  async getProperties(companyId?: number): Promise<Property[]> {
+    if (companyId) {
+      return db.select().from(properties).where(eq(properties.companyId, companyId));
+    }
     return db.select().from(properties);
   }
 
-  async getProperty(id: number): Promise<Property | undefined> {
+  async getProperty(id: number, companyId?: number): Promise<Property | undefined> {
+    if (companyId) {
+      const [property] = await db.select().from(properties).where(and(eq(properties.id, id), eq(properties.companyId, companyId)));
+      return property;
+    }
     const [property] = await db.select().from(properties).where(eq(properties.id, id));
     return property;
   }
@@ -95,20 +134,35 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateProperty(id: number, data: Partial<InsertProperty>): Promise<Property | undefined> {
+  async updateProperty(id: number, data: Partial<InsertProperty>, companyId?: number): Promise<Property | undefined> {
+    if (companyId) {
+      const [updated] = await db.update(properties).set(data).where(and(eq(properties.id, id), eq(properties.companyId, companyId))).returning();
+      return updated;
+    }
     const [updated] = await db.update(properties).set(data).where(eq(properties.id, id)).returning();
     return updated;
   }
 
-  async deleteProperty(id: number): Promise<void> {
-    await db.delete(properties).where(eq(properties.id, id));
+  async deleteProperty(id: number, companyId?: number): Promise<void> {
+    if (companyId) {
+      await db.delete(properties).where(and(eq(properties.id, id), eq(properties.companyId, companyId)));
+    } else {
+      await db.delete(properties).where(eq(properties.id, id));
+    }
   }
 
-  async getLeases(): Promise<CorporateLease[]> {
+  async getLeases(companyId?: number): Promise<CorporateLease[]> {
+    if (companyId) {
+      return db.select().from(corporateLeases).where(eq(corporateLeases.companyId, companyId));
+    }
     return db.select().from(corporateLeases);
   }
 
-  async getLease(id: number): Promise<CorporateLease | undefined> {
+  async getLease(id: number, companyId?: number): Promise<CorporateLease | undefined> {
+    if (companyId) {
+      const [lease] = await db.select().from(corporateLeases).where(and(eq(corporateLeases.id, id), eq(corporateLeases.companyId, companyId)));
+      return lease;
+    }
     const [lease] = await db.select().from(corporateLeases).where(eq(corporateLeases.id, id));
     return lease;
   }
@@ -118,16 +172,27 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateLease(id: number, data: Partial<InsertLease>): Promise<CorporateLease | undefined> {
+  async updateLease(id: number, data: Partial<InsertLease>, companyId?: number): Promise<CorporateLease | undefined> {
+    if (companyId) {
+      const [updated] = await db.update(corporateLeases).set(data).where(and(eq(corporateLeases.id, id), eq(corporateLeases.companyId, companyId))).returning();
+      return updated;
+    }
     const [updated] = await db.update(corporateLeases).set(data).where(eq(corporateLeases.id, id)).returning();
     return updated;
   }
 
-  async getVendors(): Promise<Vendor[]> {
+  async getVendors(companyId?: number): Promise<Vendor[]> {
+    if (companyId) {
+      return db.select().from(vendors).where(eq(vendors.companyId, companyId));
+    }
     return db.select().from(vendors);
   }
 
-  async getVendor(id: number): Promise<Vendor | undefined> {
+  async getVendor(id: number, companyId?: number): Promise<Vendor | undefined> {
+    if (companyId) {
+      const [vendor] = await db.select().from(vendors).where(and(eq(vendors.id, id), eq(vendors.companyId, companyId)));
+      return vendor;
+    }
     const [vendor] = await db.select().from(vendors).where(eq(vendors.id, id));
     return vendor;
   }
@@ -137,12 +202,19 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateVendor(id: number, data: Partial<InsertVendor>): Promise<Vendor | undefined> {
+  async updateVendor(id: number, data: Partial<InsertVendor>, companyId?: number): Promise<Vendor | undefined> {
+    if (companyId) {
+      const [updated] = await db.update(vendors).set(data).where(and(eq(vendors.id, id), eq(vendors.companyId, companyId))).returning();
+      return updated;
+    }
     const [updated] = await db.update(vendors).set(data).where(eq(vendors.id, id)).returning();
     return updated;
   }
 
-  async getDocuments(): Promise<Document[]> {
+  async getDocuments(companyId?: number): Promise<Document[]> {
+    if (companyId) {
+      return db.select().from(documents).where(eq(documents.companyId, companyId));
+    }
     return db.select().from(documents);
   }
 
@@ -151,7 +223,11 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateDocument(id: number, data: Partial<InsertDocument>): Promise<Document | undefined> {
+  async updateDocument(id: number, data: Partial<InsertDocument>, companyId?: number): Promise<Document | undefined> {
+    if (companyId) {
+      const [updated] = await db.update(documents).set(data).where(and(eq(documents.id, id), eq(documents.companyId, companyId))).returning();
+      return updated;
+    }
     const [updated] = await db.update(documents).set(data).where(eq(documents.id, id)).returning();
     return updated;
   }
@@ -181,11 +257,17 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getJobRequests(): Promise<JobRequest[]> {
+  async getJobRequests(companyId?: number): Promise<JobRequest[]> {
+    if (companyId) {
+      return db.select().from(jobRequests).where(eq(jobRequests.companyId, companyId));
+    }
     return db.select().from(jobRequests);
   }
 
-  async getJobRequestsByVendor(vendorId: number): Promise<JobRequest[]> {
+  async getJobRequestsByVendor(vendorId: number, companyId?: number): Promise<JobRequest[]> {
+    if (companyId) {
+      return db.select().from(jobRequests).where(and(eq(jobRequests.vendorId, vendorId), eq(jobRequests.companyId, companyId)));
+    }
     return db.select().from(jobRequests).where(eq(jobRequests.vendorId, vendorId));
   }
 
@@ -194,16 +276,26 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateJobRequest(id: number, data: Partial<InsertJobRequest>): Promise<JobRequest | undefined> {
+  async updateJobRequest(id: number, data: Partial<InsertJobRequest>, companyId?: number): Promise<JobRequest | undefined> {
+    if (companyId) {
+      const [updated] = await db.update(jobRequests).set(data).where(and(eq(jobRequests.id, id), eq(jobRequests.companyId, companyId))).returning();
+      return updated;
+    }
     const [updated] = await db.update(jobRequests).set(data).where(eq(jobRequests.id, id)).returning();
     return updated;
   }
 
-  async getNotifications(): Promise<Notification[]> {
+  async getNotifications(companyId?: number): Promise<Notification[]> {
+    if (companyId) {
+      return db.select().from(notifications).where(eq(notifications.companyId, companyId)).orderBy(desc(notifications.createdAt)).limit(50);
+    }
     return db.select().from(notifications).orderBy(desc(notifications.createdAt)).limit(50);
   }
 
-  async getUnreadNotifications(): Promise<Notification[]> {
+  async getUnreadNotifications(companyId?: number): Promise<Notification[]> {
+    if (companyId) {
+      return db.select().from(notifications).where(and(eq(notifications.read, false), eq(notifications.companyId, companyId))).orderBy(desc(notifications.createdAt));
+    }
     return db.select().from(notifications).where(eq(notifications.read, false)).orderBy(desc(notifications.createdAt));
   }
 
@@ -212,13 +304,21 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async markNotificationRead(id: number): Promise<Notification | undefined> {
+  async markNotificationRead(id: number, companyId?: number): Promise<Notification | undefined> {
+    if (companyId) {
+      const [updated] = await db.update(notifications).set({ read: true }).where(and(eq(notifications.id, id), eq(notifications.companyId, companyId))).returning();
+      return updated;
+    }
     const [updated] = await db.update(notifications).set({ read: true }).where(eq(notifications.id, id)).returning();
     return updated;
   }
 
-  async markAllNotificationsRead(): Promise<void> {
-    await db.update(notifications).set({ read: true }).where(eq(notifications.read, false));
+  async markAllNotificationsRead(companyId?: number): Promise<void> {
+    if (companyId) {
+      await db.update(notifications).set({ read: true }).where(and(eq(notifications.read, false), eq(notifications.companyId, companyId)));
+    } else {
+      await db.update(notifications).set({ read: true }).where(eq(notifications.read, false));
+    }
   }
 }
 

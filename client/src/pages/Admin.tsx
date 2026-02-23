@@ -30,6 +30,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { authFetch } from "@/lib/authContext";
 import type { CryptoCurrency, Document as DocumentType, Vendor, CorporateLease } from "@shared/schema";
 
 export default function Admin() {
@@ -43,18 +44,38 @@ export default function Admin() {
 
   const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
     queryKey: ["/api/crypto"],
+    queryFn: async () => {
+      const res = await authFetch("/api/crypto");
+      if (!res.ok) throw new Error("Failed to fetch crypto");
+      return res.json();
+    },
   });
 
   const { data: documentsList = [], isLoading: docsLoading } = useQuery<DocumentType[]>({
     queryKey: ["/api/documents"],
+    queryFn: async () => {
+      const res = await authFetch("/api/documents");
+      if (!res.ok) throw new Error("Failed to fetch documents");
+      return res.json();
+    },
   });
 
   const { data: vendorsList = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
+    queryFn: async () => {
+      const res = await authFetch("/api/vendors");
+      if (!res.ok) throw new Error("Failed to fetch vendors");
+      return res.json();
+    },
   });
 
   const { data: leasesList = [], isLoading: leasesLoading } = useQuery<CorporateLease[]>({
     queryKey: ["/api/leases"],
+    queryFn: async () => {
+      const res = await authFetch("/api/leases");
+      if (!res.ok) throw new Error("Failed to fetch leases");
+      return res.json();
+    },
   });
 
   const toggleCryptoMutation = useMutation({
@@ -103,7 +124,7 @@ export default function Admin() {
     const methodLabel = payoutMethod === "card" ? "Card" : payoutMethod === "ach" ? "ACH" : selectedCrypto;
     try {
       if (payoutMethod === "crypto") {
-        await fetch("/api/notifications", {
+        await authFetch("/api/notifications", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -117,7 +138,7 @@ export default function Admin() {
           }),
         });
       } else {
-        await fetch("/api/stripe/create-payout", {
+        await authFetch("/api/stripe/create-payout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

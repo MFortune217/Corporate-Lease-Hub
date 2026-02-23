@@ -13,7 +13,7 @@ import { Search, Wallet, Users, Building, PlusCircle, MoreHorizontal, CreditCard
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/lib/authContext";
+import { useAuth, authFetch } from "@/lib/authContext";
 import type { CorporateLease, Property, CryptoCurrency } from "@shared/schema";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -22,7 +22,7 @@ let stripePromise: Promise<Stripe | null> | null = null;
 
 function getStripePromise() {
   if (!stripePromise) {
-    stripePromise = fetch("/api/stripe/publishable-key")
+    stripePromise = authFetch("/api/stripe/publishable-key")
       .then((res) => res.json())
       .then((data) => loadStripe(data.publishableKey))
       .catch(() => null);
@@ -89,14 +89,29 @@ export default function Customers() {
 
   const { data: leases = [], isLoading: leasesLoading } = useQuery<CorporateLease[]>({
     queryKey: ["/api/leases"],
+    queryFn: async () => {
+      const res = await authFetch("/api/leases");
+      if (!res.ok) throw new Error("Failed to fetch leases");
+      return res.json();
+    },
   });
 
   const { data: propertiesList = [], isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
+    queryFn: async () => {
+      const res = await authFetch("/api/properties");
+      if (!res.ok) throw new Error("Failed to fetch properties");
+      return res.json();
+    },
   });
 
   const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
     queryKey: ["/api/crypto"],
+    queryFn: async () => {
+      const res = await authFetch("/api/crypto");
+      if (!res.ok) throw new Error("Failed to fetch crypto");
+      return res.json();
+    },
   });
 
   const totalRent = leases.reduce((acc, lease) => acc + lease.rent, 0);
@@ -117,7 +132,7 @@ export default function Customers() {
       description: `Payment of $${totalRent.toLocaleString()} via ${selectedCrypto} submitted to smart contract.`,
     });
     try {
-      await fetch("/api/notifications", {
+      await authFetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -149,7 +164,7 @@ export default function Customers() {
   const createPaymentIntent = async (method: string) => {
     setStripeLoading(true);
     try {
-      const res = await fetch("/api/stripe/create-payment-intent", {
+      const res = await authFetch("/api/stripe/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

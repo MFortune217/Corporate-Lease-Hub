@@ -4,6 +4,17 @@ import { storage } from './storage';
 import { broadcastNotification } from './notifications';
 
 export class WebhookHandlers {
+  static async resolveCompanyId(pi: Stripe.PaymentIntent): Promise<number | null> {
+    if (pi.metadata?.companyId) {
+      return Number(pi.metadata.companyId);
+    }
+    if (pi.customer && typeof pi.customer === 'string') {
+      const company = await storage.getCompanyByStripeCustomerId(pi.customer);
+      if (company) return company.id;
+    }
+    return null;
+  }
+
   static async processWebhook(payload: Buffer, signature: string): Promise<Stripe.Event> {
     if (!Buffer.isBuffer(payload)) {
       throw new Error(
@@ -27,6 +38,11 @@ export class WebhookHandlers {
         const amount = pi.amount / 100;
         const method = pi.payment_method_types?.[0] === 'us_bank_account' ? 'ACH' : 'Card';
         const portal = (pi.metadata?.portal as string) || 'customer';
+        const companyId = await WebhookHandlers.resolveCompanyId(pi);
+        if (!companyId) {
+          console.warn('Webhook: Could not resolve tenant for payment_intent.succeeded:', pi.id);
+          break;
+        }
         const notification = await storage.createNotification({
           type: 'payment_received',
           title: 'Payment Received',
@@ -35,6 +51,7 @@ export class WebhookHandlers {
           method,
           amount,
           read: false,
+          companyId,
         });
         broadcastNotification(notification);
         console.log('Payment succeeded:', pi.id, `$${amount}`);
@@ -45,6 +62,11 @@ export class WebhookHandlers {
         const amount = pi.amount / 100;
         const method = pi.payment_method_types?.[0] === 'us_bank_account' ? 'ACH' : 'Card';
         const portal = (pi.metadata?.portal as string) || 'customer';
+        const companyId = await WebhookHandlers.resolveCompanyId(pi);
+        if (!companyId) {
+          console.warn('Webhook: Could not resolve tenant for payment_intent.payment_failed:', pi.id);
+          break;
+        }
         const notification = await storage.createNotification({
           type: 'payment_failed',
           title: 'Payment Failed',
@@ -53,6 +75,7 @@ export class WebhookHandlers {
           method,
           amount,
           read: false,
+          companyId,
         });
         broadcastNotification(notification);
         console.log('Payment failed:', pi.id);
