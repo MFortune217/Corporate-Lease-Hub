@@ -69,14 +69,14 @@ export default function Home() {
               muted
               playsInline
               preload="auto"
-              className="w-full h-full object-cover opacity-80"
+              className="w-full h-full object-cover"
             >
               <source src={src} type="video/mp4" />
             </video>
           </div>
         ))}
         
-        <div className="absolute inset-0 z-0 bg-black/40" />
+        <div className="absolute inset-0 z-0 bg-black/25" />
         
         <div className="container relative z-10 text-center text-white space-y-6">
           <motion.div
