@@ -830,6 +830,7 @@ export default function Admin() {
                       { slug: "about", title: "About Us" },
                       { slug: "careers", title: "Careers" },
                       { slug: "press", title: "Press & Media" },
+                      { slug: "contact", title: "Contact" },
                       { slug: "privacy-policy", title: "Privacy Policy" },
                       { slug: "terms-of-service", title: "Terms of Service" },
                       { slug: "cookie-policy", title: "Cookie Policy" },

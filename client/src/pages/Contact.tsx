@@ -8,6 +8,50 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import type { PageContent } from "@shared/schema";
+
+const defaultContent = `Have a question or need assistance? We're here to help.
+
+support@corplease.com
+sales@corplease.com
+
+(555) 123-4567
+Mon-Fri, 9am-6pm EST
+
+100 Corporate Plaza
+Suite 400, New York, NY 10001`;
+
+function parseContactContent(content: string) {
+  const lines = content.split("\n").filter(l => l.trim() !== "");
+  const subtitle = lines[0] || "Have a question or need assistance? We're here to help.";
+  const emails: string[] = [];
+  const phones: string[] = [];
+  const addressLines: string[] = [];
+  let section = "subtitle";
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.includes("@")) {
+      emails.push(line);
+      section = "email";
+    } else if (/^\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/.test(line) || line.startsWith("(")) {
+      phones.push(line);
+      section = "phone";
+    } else if (section === "phone" && !line.includes("@") && phones.length > 0) {
+      phones.push(line);
+    } else {
+      addressLines.push(line);
+    }
+  }
+
+  return {
+    subtitle,
+    emails: emails.length > 0 ? emails : ["support@corplease.com", "sales@corplease.com"],
+    phones: phones.length > 0 ? phones : ["(555) 123-4567", "Mon-Fri, 9am-6pm EST"],
+    address: addressLines.length > 0 ? addressLines : ["100 Corporate Plaza", "Suite 400, New York, NY 10001"],
+  };
+}
 
 export default function Contact() {
   const { toast } = useToast();
@@ -17,6 +61,18 @@ export default function Contact() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const { data: page } = useQuery<PageContent>({
+    queryKey: ["/api/pages/contact"],
+    queryFn: async () => {
+      const res = await fetch("/api/pages/contact");
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  const contactInfo = parseContactContent(page?.content || defaultContent);
+  const pageTitle = page?.title || "Contact Us";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +103,8 @@ export default function Contact() {
       <div className="flex-1 bg-slate-50">
         <div className="bg-primary text-white py-16">
           <div className="container">
-            <h1 className="text-4xl md:text-5xl font-display font-bold mb-4" data-testid="text-contact-title">Contact Us</h1>
-            <p className="text-lg text-white/80 max-w-2xl">Have a question or need assistance? We're here to help.</p>
+            <h1 className="text-4xl md:text-5xl font-display font-bold mb-4" data-testid="text-contact-title">{pageTitle}</h1>
+            <p className="text-lg text-white/80 max-w-2xl">{contactInfo.subtitle}</p>
           </div>
         </div>
 
@@ -116,8 +172,9 @@ export default function Contact() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-1">Email</h3>
-                      <p className="text-sm text-muted-foreground">support@corplease.com</p>
-                      <p className="text-sm text-muted-foreground">sales@corplease.com</p>
+                      {contactInfo.emails.map((e, i) => (
+                        <p key={i} className="text-sm text-muted-foreground">{e}</p>
+                      ))}
                     </div>
                   </div>
                 </CardContent>
@@ -130,8 +187,9 @@ export default function Contact() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-1">Phone</h3>
-                      <p className="text-sm text-muted-foreground">(555) 123-4567</p>
-                      <p className="text-sm text-muted-foreground">Mon-Fri, 9am-6pm EST</p>
+                      {contactInfo.phones.map((p, i) => (
+                        <p key={i} className="text-sm text-muted-foreground">{p}</p>
+                      ))}
                     </div>
                   </div>
                 </CardContent>
@@ -144,8 +202,9 @@ export default function Contact() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-1">Office</h3>
-                      <p className="text-sm text-muted-foreground">100 Corporate Plaza</p>
-                      <p className="text-sm text-muted-foreground">Suite 400, New York, NY 10001</p>
+                      {contactInfo.address.map((a, i) => (
+                        <p key={i} className="text-sm text-muted-foreground">{a}</p>
+                      ))}
                     </div>
                   </div>
                 </CardContent>
