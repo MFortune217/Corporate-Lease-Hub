@@ -18,3 +18,10 @@ export function broadcastNotification(notification: Notification) {
     client.write(`data: ${data}\n\n`);
   }
 }
+
+export function broadcastPageUpdate(slug: string) {
+  const data = JSON.stringify({ type: "page_updated", slug });
+  for (const client of sseClients) {
+    client.write(`data: ${data}\n\n`);
+  }
+}

@@ -2,6 +2,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useQuery } from "@tanstack/react-query";
 import type { PageContent } from "@shared/schema";
+import { usePageUpdates } from "@/lib/usePageUpdates";
 
 interface ContentPageProps {
   slug: string;
@@ -11,6 +12,8 @@ interface ContentPageProps {
 }
 
 export default function ContentPage({ slug, fallbackTitle, fallbackContent, icon }: ContentPageProps) {
+  usePageUpdates(slug);
+
   const { data: page, isLoading } = useQuery<PageContent>({
     queryKey: [`/api/pages/${slug}`],
     queryFn: async () => {

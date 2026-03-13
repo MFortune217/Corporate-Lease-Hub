@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { usePageUpdates } from "@/lib/usePageUpdates";
 import { useQuery } from "@tanstack/react-query";
 import type { PageContent } from "@shared/schema";
 
@@ -54,6 +55,8 @@ function parseContactContent(content: string) {
 }
 
 export default function Contact() {
+  usePageUpdates("contact");
+
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

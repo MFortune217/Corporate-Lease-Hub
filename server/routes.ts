@@ -15,7 +15,7 @@ import {
   type Notification,
 } from "@shared/schema";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { broadcastNotification, addSSEClient, removeSSEClient } from "./notifications";
+import { broadcastNotification, broadcastPageUpdate, addSSEClient, removeSSEClient } from "./notifications";
 import { signToken, requireAuth, requireRole } from "./auth";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
@@ -626,6 +626,7 @@ export async function registerRoutes(
     const parsed = insertPageContentSchema.safeParse({ ...req.body, slug: req.params.slug });
     if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
     const page = await storage.upsertPageContent(parsed.data);
+    broadcastPageUpdate(req.params.slug);
     res.json(page);
   });
 
