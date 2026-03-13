@@ -142,3 +142,31 @@ export const notifications = pgTable("notifications", {
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export const contactRequests = pgTable("contact_requests", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("new"),
+  adminResponse: text("admin_response"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+export const insertContactRequestSchema = createInsertSchema(contactRequests).omit({ id: true, createdAt: true, respondedAt: true });
+export type InsertContactRequest = z.infer<typeof insertContactRequestSchema>;
+export type ContactRequest = typeof contactRequests.$inferSelect;
+
+export const pageContents = pgTable("page_contents", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPageContentSchema = createInsertSchema(pageContents).omit({ id: true, updatedAt: true });
+export type InsertPageContent = z.infer<typeof insertPageContentSchema>;
+export type PageContent = typeof pageContents.$inferSelect;

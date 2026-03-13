@@ -71,6 +71,8 @@ Preferred communication style: Simple, everyday language.
   - `crypto_currencies` — cryptocurrency payment configuration (toggleable, admin-only control)
   - `job_requests` — maintenance/service job tracking for vendors (companyId)
   - `notifications` — real-time payment status notifications (companyId for tenant isolation)
+  - `contact_requests` — contact form submissions (name, email, subject, message, status, adminResponse)
+  - `page_contents` — admin-editable page content (slug, title, content, updatedAt)
 - **Schema Push**: Use `npm run db:push` (drizzle-kit push) to sync schema to database
 
 ### API Endpoints
@@ -98,7 +100,36 @@ All endpoints are prefixed with `/api/`:
 - `POST /stripe/create-payment-intent` — Create Stripe payment (maps to company's Stripe customer)
 - `POST /stripe/create-payout` — Create vendor payout
 
+**Public (no auth):**
+- `POST /contact` — Submit a contact form request
+- `GET /pages/:slug` — Get page content by slug
+- `GET /pages` — Get all page contents
+- `POST /seed-pages` — Seed default page content
+
+**Admin-only (require JWT + admin role):**
+- `GET /contact` — List all contact requests
+- `PATCH /contact/:id` — Respond to a contact request
+- `PUT /pages/:slug` — Create or update page content
+
+### Frontend Pages
+- `/` — Home (hero, featured listings, portal overview)
+- `/customers` — Corporate Clients portal auth (login/register)
+- `/owners` — Property Owners portal auth
+- `/vendors` — Vendors portal auth
+- `/customers/dashboard`, `/owners/dashboard`, `/vendors/dashboard` — Portal dashboards
+- `/admin` — Super Admin (Overview, Finance, Approvals, Contacts, Pages tabs)
+- `/contact` — Contact form (public)
+- `/search` — Search properties with filters
+- `/about`, `/careers`, `/press` — Company info pages (admin-editable)
+- `/privacy-policy`, `/terms-of-service`, `/cookie-policy` — Legal pages (admin-editable)
+
 ## Recent Changes
+- 2026-03-13: Renamed "For Customers" to "Corporate Clients" across Navbar and Footer
+- 2026-03-13: Removed Connect Wallet and Login buttons from Homepage/Navbar
+- 2026-03-13: Added payment request feature for Super Admin in Admin Portal Finance tab
+- 2026-03-13: Created all footer link pages (About, Careers, Press, Contact, Search Properties, Privacy Policy, Terms of Service, Cookie Policy)
+- 2026-03-13: Added Super Admin page editing (Pages tab) and contact response management (Contacts tab)
+- 2026-03-13: Added contact_requests and page_contents database tables with full CRUD
 - 2026-02-23: Implemented full multi-tenant architecture with companies table, JWT auth, tenant-scoped data isolation, and Stripe customer mapping per tenant
 - 2026-02-22: Rewrote Stripe integration for Render deployment — standard env vars (STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET)
 - 2026-02-14: Added portal auth pages (login/register with company fields) at /customers, /owners, /vendors; dashboards moved to /*/dashboard paths; bcrypt password hashing

@@ -14,32 +14,32 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Platform</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/customers">For Customers</Link></li>
-              <li><Link href="/owners">For Owners</Link></li>
-              <li><Link href="/vendors">For Vendors</Link></li>
-              <li><Link href="#">Search Properties</Link></li>
+              <li><Link href="/customers" className="hover:text-primary transition-colors">Corporate Clients</Link></li>
+              <li><Link href="/owners" className="hover:text-primary transition-colors">For Owners</Link></li>
+              <li><Link href="/vendors" className="hover:text-primary transition-colors">For Vendors</Link></li>
+              <li><Link href="/search" className="hover:text-primary transition-colors">Search Properties</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="#">About Us</Link></li>
-              <li><Link href="#">Careers</Link></li>
-              <li><Link href="#">Press</Link></li>
-              <li><Link href="#">Contact</Link></li>
+              <li><Link href="/about" className="hover:text-primary transition-colors">About Us</Link></li>
+              <li><Link href="/careers" className="hover:text-primary transition-colors">Careers</Link></li>
+              <li><Link href="/press" className="hover:text-primary transition-colors">Press</Link></li>
+              <li><Link href="/contact" className="hover:text-primary transition-colors">Contact</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="#">Privacy Policy</Link></li>
-              <li><Link href="#">Terms of Service</Link></li>
-              <li><Link href="#">Cookie Policy</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms-of-service" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link href="/cookie-policy" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
             </ul>
           </div>
         </div>
         <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} CorpLease Inc. All rights reserved.
+          &copy; {new Date().getFullYear()} CorpLease Inc. All rights reserved.
         </div>
       </div>
     </footer>

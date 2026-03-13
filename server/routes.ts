@@ -10,6 +10,8 @@ import {
   insertJobRequestSchema,
   insertNotificationSchema,
   insertUserSchema,
+  insertContactRequestSchema,
+  insertPageContentSchema,
   type Notification,
 } from "@shared/schema";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
@@ -582,6 +584,66 @@ export async function registerRoutes(
       broadcastNotification(notification);
       res.status(500).json({ message: error.message });
     }
+  });
+
+  // Contact Requests - Public create, Admin read/respond
+  app.post("/api/contact", async (req, res) => {
+    const parsed = insertContactRequestSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const request = await storage.createContactRequest(parsed.data);
+    res.status(201).json(request);
+  });
+
+  app.get("/api/contact", requireAuth, requireRole("admin"), async (_req, res) => {
+    const requests = await storage.getContactRequests();
+    res.json(requests);
+  });
+
+  app.patch("/api/contact/:id", requireAuth, requireRole("admin"), async (req, res) => {
+    const { adminResponse, status } = req.body;
+    const updated = await storage.updateContactRequest(Number(req.params.id), {
+      adminResponse,
+      status: status || "responded",
+      respondedAt: new Date(),
+    });
+    if (!updated) return res.status(404).json({ message: "Contact request not found" });
+    res.json(updated);
+  });
+
+  // Page Content - Public read, Admin write
+  app.get("/api/pages/:slug", async (req, res) => {
+    const page = await storage.getPageContent(req.params.slug);
+    if (!page) return res.status(404).json({ message: "Page not found" });
+    res.json(page);
+  });
+
+  app.get("/api/pages", async (_req, res) => {
+    const pages = await storage.getAllPageContents();
+    res.json(pages);
+  });
+
+  app.put("/api/pages/:slug", requireAuth, requireRole("admin"), async (req, res) => {
+    const parsed = insertPageContentSchema.safeParse({ ...req.body, slug: req.params.slug });
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const page = await storage.upsertPageContent(parsed.data);
+    res.json(page);
+  });
+
+  // Seed default page content
+  app.post("/api/seed-pages", async (_req, res) => {
+    const defaultPages = [
+      { slug: "about", title: "About Us", content: "CorpLease is the leading corporate housing platform connecting businesses with premium living spaces. Founded with a vision to simplify corporate relocation, we've grown to serve hundreds of companies across major metropolitan areas.\n\nOur platform streamlines the entire process — from property discovery to lease management and payment processing. We believe every professional deserves a comfortable home, and every company deserves a hassle-free housing solution.\n\nWith our network of property owners, vetted service vendors, and cutting-edge technology, we deliver an unmatched corporate housing experience." },
+      { slug: "careers", title: "Careers", content: "Join the team that's transforming corporate housing. At CorpLease, we're building the future of professional relocation and property management.\n\nWe're always looking for talented individuals who share our passion for innovation and exceptional service. Whether you're in engineering, design, sales, or operations, there's a place for you here.\n\nCurrent openings include positions in Full-Stack Development, Product Design, Enterprise Sales, Customer Success, and Property Operations. We offer competitive compensation, comprehensive benefits, flexible work arrangements, and the opportunity to make a real impact." },
+      { slug: "press", title: "Press & Media", content: "CorpLease has been recognized as an industry leader in corporate housing technology. Our innovative approach to property management and tenant services has garnered attention from leading business publications.\n\nFor press inquiries, media kits, and interview requests, please reach out through our contact page. We're happy to share insights on the corporate housing industry, property technology trends, and our company's growth story.\n\nRecent coverage includes features on our multi-tenant architecture, integrated payment solutions, and our expanding vendor network across major markets." },
+      { slug: "privacy-policy", title: "Privacy Policy", content: "Effective Date: January 1, 2024\n\nAt CorpLease, we take your privacy seriously. This policy describes how we collect, use, and protect your personal information.\n\nInformation We Collect: We collect information you provide directly, such as your name, email address, company details, and payment information. We also collect usage data through cookies and similar technologies.\n\nHow We Use Information: Your information is used to provide and improve our services, process transactions, communicate with you, and ensure platform security.\n\nData Protection: We implement industry-standard security measures including encryption, secure data storage, and regular security audits. We never sell your personal data to third parties.\n\nYour Rights: You have the right to access, correct, or delete your personal data. Contact us at privacy@corplease.com for any privacy-related requests." },
+      { slug: "terms-of-service", title: "Terms of Service", content: "Last Updated: January 1, 2024\n\nWelcome to CorpLease. By accessing or using our platform, you agree to be bound by these Terms of Service.\n\nAccount Registration: Users must provide accurate and complete information when creating an account. You are responsible for maintaining the confidentiality of your login credentials.\n\nPlatform Usage: CorpLease provides a marketplace connecting corporate tenants, property owners, and service vendors. All transactions are subject to applicable laws and regulations.\n\nPayment Terms: Payments processed through our platform are subject to our payment processing partner's terms. We support multiple payment methods including ACH, credit/debit cards, and select cryptocurrencies.\n\nLiability: CorpLease acts as an intermediary platform. While we vet our partners, we are not responsible for the condition of properties or quality of vendor services beyond our stated guarantees.\n\nTermination: We reserve the right to suspend or terminate accounts that violate these terms or engage in fraudulent activity." },
+      { slug: "cookie-policy", title: "Cookie Policy", content: "CorpLease uses cookies and similar tracking technologies to enhance your experience on our platform.\n\nEssential Cookies: Required for basic platform functionality including authentication, security, and session management. These cannot be disabled.\n\nAnalytics Cookies: Help us understand how visitors interact with our platform. This data is used to improve our services and user experience.\n\nPreference Cookies: Remember your settings and preferences for a more personalized experience.\n\nManaging Cookies: You can control cookie preferences through your browser settings. Note that disabling certain cookies may affect platform functionality.\n\nBy continuing to use CorpLease, you consent to our use of cookies as described in this policy." },
+    ];
+
+    for (const page of defaultPages) {
+      await storage.upsertPageContent(page);
+    }
+    res.json({ message: "Default page content seeded successfully" });
   });
 
   return httpServer;

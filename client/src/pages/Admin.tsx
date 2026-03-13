@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ShieldAlert, 
@@ -24,14 +25,20 @@ import {
   Landmark,
   Bitcoin,
   DollarSign,
-  Send
+  Send,
+  MessageSquare,
+  Edit3,
+  Mail,
+  Clock,
+  Save,
+  Receipt
 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/authContext";
-import type { CryptoCurrency, Document as DocumentType, Vendor, CorporateLease } from "@shared/schema";
+import type { CryptoCurrency, Document as DocumentType, Vendor, CorporateLease, ContactRequest, PageContent } from "@shared/schema";
 
 export default function Admin() {
   const { toast } = useToast();
@@ -41,6 +48,21 @@ export default function Admin() {
   const [payoutRecipient, setPayoutRecipient] = useState("");
   const [selectedCrypto, setSelectedCrypto] = useState("");
   const [processing, setProcessing] = useState(false);
+
+  const [showPaymentRequestDialog, setShowPaymentRequestDialog] = useState(false);
+  const [prCompany, setPrCompany] = useState("");
+  const [prAmount, setPrAmount] = useState("");
+  const [prDescription, setPrDescription] = useState("");
+  const [prMethod, setPrMethod] = useState("ach");
+  const [prProcessing, setPrProcessing] = useState(false);
+
+  const [showResponseDialog, setShowResponseDialog] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<ContactRequest | null>(null);
+  const [responseText, setResponseText] = useState("");
+
+  const [editingPage, setEditingPage] = useState<PageContent | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   const { data: cryptoList = [], isLoading: cryptoLoading } = useQuery<CryptoCurrency[]>({
     queryKey: ["/api/crypto"],
@@ -74,6 +96,24 @@ export default function Admin() {
     queryFn: async () => {
       const res = await authFetch("/api/leases");
       if (!res.ok) throw new Error("Failed to fetch leases");
+      return res.json();
+    },
+  });
+
+  const { data: contactRequests = [] } = useQuery<ContactRequest[]>({
+    queryKey: ["/api/contact"],
+    queryFn: async () => {
+      const res = await authFetch("/api/contact");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: pageContents = [] } = useQuery<PageContent[]>({
+    queryKey: ["/api/pages"],
+    queryFn: async () => {
+      const res = await fetch("/api/pages");
+      if (!res.ok) return [];
       return res.json();
     },
   });
@@ -162,8 +202,87 @@ export default function Admin() {
     }
   };
 
+  const handlePaymentRequest = async () => {
+    const amount = parseFloat(prAmount);
+    if (!amount || amount <= 0 || !prCompany) {
+      toast({ title: "Error", description: "Enter a valid company and amount", variant: "destructive" });
+      return;
+    }
+    setPrProcessing(true);
+    const methodLabel = prMethod === "card" ? "Card" : prMethod === "ach" ? "ACH" : "Crypto";
+    try {
+      await authFetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "payment_request",
+          title: "Payment Requested",
+          message: `Payment of $${amount.toLocaleString()} requested from ${prCompany} via ${methodLabel}. ${prDescription ? `Note: ${prDescription}` : ""}`,
+          portal: "admin",
+          method: methodLabel,
+          amount,
+          read: false,
+        }),
+      });
+      setShowPaymentRequestDialog(false);
+      setPrCompany("");
+      setPrAmount("");
+      setPrDescription("");
+      toast({
+        title: "Payment Request Sent",
+        description: `$${amount.toLocaleString()} payment request sent to ${prCompany}.`,
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to send payment request.", variant: "destructive" });
+    } finally {
+      setPrProcessing(false);
+    }
+  };
+
+  const handleContactResponse = async () => {
+    if (!selectedContact || !responseText.trim()) {
+      toast({ title: "Error", description: "Please enter a response.", variant: "destructive" });
+      return;
+    }
+    try {
+      await authFetch(`/api/contact/${selectedContact.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminResponse: responseText, status: "responded" }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/contact"] });
+      setShowResponseDialog(false);
+      setSelectedContact(null);
+      setResponseText("");
+      toast({ title: "Response Sent", description: "Your response has been saved." });
+    } catch {
+      toast({ title: "Error", description: "Failed to save response.", variant: "destructive" });
+    }
+  };
+
+  const handleSavePage = async () => {
+    if (!editingPage || !editTitle.trim() || !editContent.trim()) {
+      toast({ title: "Error", description: "Title and content are required.", variant: "destructive" });
+      return;
+    }
+    try {
+      await authFetch(`/api/pages/${editingPage.slug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle, content: editContent, slug: editingPage.slug }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pages"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/pages/${editingPage.slug}`] });
+      setEditingPage(null);
+      toast({ title: "Page Updated", description: `"${editTitle}" has been saved.` });
+    } catch {
+      toast({ title: "Error", description: "Failed to save page.", variant: "destructive" });
+    }
+  };
+
   const pendingDocs = documentsList.filter(d => d.status === "Pending" || d.status === "New" || d.status === "Review Needed");
   const totalRevenue = leasesList.reduce((acc, l) => acc + l.rent, 0);
+  const newContacts = contactRequests.filter(c => c.status === "new").length;
 
   const recentTransactions = [
     { desc: "Lease Payment Received", party: "TechCorp Inc.", amount: 4200, type: "in", method: "ACH", date: "Oct 14, 2023" },
@@ -209,10 +328,14 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full md:w-[600px] grid-cols-3">
+          <TabsList className="grid w-full md:w-[900px] grid-cols-5">
             <TabsTrigger value="overview" data-testid="tab-admin-overview">Overview</TabsTrigger>
-            <TabsTrigger value="finance" data-testid="tab-admin-finance">Finance & Payments</TabsTrigger>
+            <TabsTrigger value="finance" data-testid="tab-admin-finance">Finance</TabsTrigger>
             <TabsTrigger value="approvals" data-testid="tab-admin-approvals">Approvals</TabsTrigger>
+            <TabsTrigger value="contacts" data-testid="tab-admin-contacts">
+              Contacts {newContacts > 0 && <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0">{newContacts}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="pages" data-testid="tab-admin-pages">Pages</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-6 mt-6">
@@ -390,9 +513,14 @@ export default function Admin() {
                     <CardTitle>Payment Method Configuration</CardTitle>
                     <CardDescription>Manage traditional and cryptocurrency payment methods across the platform.</CardDescription>
                   </div>
-                  <Button onClick={() => setShowPayoutDialog(true)} data-testid="button-admin-payout">
-                    <Send className="mr-2 h-4 w-4" /> Manual Payout
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setShowPaymentRequestDialog(true)} data-testid="button-admin-payment-request">
+                      <Receipt className="mr-2 h-4 w-4" /> Request Payment
+                    </Button>
+                    <Button onClick={() => setShowPayoutDialog(true)} data-testid="button-admin-payout">
+                      <Send className="mr-2 h-4 w-4" /> Manual Payout
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -573,7 +701,7 @@ export default function Admin() {
                          </div>
                          <div>
                            <h4 className="font-bold">{item.name}</h4>
-                           <p className="text-sm text-muted-foreground">Submitted by: {item.userName || "Unknown"} • {item.date}</p>
+                           <p className="text-sm text-muted-foreground">Submitted by: {item.userName || "Unknown"} &bull; {item.date}</p>
                          </div>
                        </div>
                        <div className="flex gap-2 w-full md:w-auto">
@@ -601,6 +729,153 @@ export default function Admin() {
                  </div>
                </CardContent>
              </Card>
+          </TabsContent>
+
+          <TabsContent value="contacts" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" /> Contact Requests
+                </CardTitle>
+                <CardDescription>Review and respond to messages submitted through the contact page.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {contactRequests.map((request) => (
+                    <div key={request.id} className="p-4 border rounded-lg bg-white" data-testid={`admin-contact-${request.id}`}>
+                      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={`p-2 rounded-lg ${request.status === 'new' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                              <Mail className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold">{request.subject}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                From: {request.name} ({request.email})
+                              </p>
+                            </div>
+                            <Badge className={request.status === 'new' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}>
+                              {request.status === 'new' ? 'New' : 'Responded'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2 pl-12">{request.message}</p>
+                          {request.adminResponse && (
+                            <div className="mt-3 ml-12 p-3 bg-muted/50 rounded-lg">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Your Response:</p>
+                              <p className="text-sm">{request.adminResponse}</p>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mt-2 pl-12">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(request.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          variant={request.status === 'new' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedContact(request);
+                            setResponseText(request.adminResponse || "");
+                            setShowResponseDialog(true);
+                          }}
+                          data-testid={`button-respond-contact-${request.id}`}
+                        >
+                          <MessageSquare className="mr-2 h-4 w-4" /> {request.status === 'new' ? 'Respond' : 'Edit Response'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {contactRequests.length === 0 && (
+                    <p className="text-muted-foreground text-center py-8">No contact requests yet.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pages" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Edit3 className="h-5 w-5" /> Page Management
+                </CardTitle>
+                <CardDescription>Edit the content of your website pages.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {editingPage ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold">Editing: {editingPage.slug}</h3>
+                      <Button variant="outline" onClick={() => setEditingPage(null)}>Cancel</Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Page Title</Label>
+                      <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} data-testid="input-edit-page-title" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Content</Label>
+                      <Textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={15} className="font-mono text-sm" data-testid="input-edit-page-content" />
+                      <p className="text-xs text-muted-foreground">Use double line breaks to separate paragraphs.</p>
+                    </div>
+                    <Button onClick={handleSavePage} data-testid="button-save-page">
+                      <Save className="mr-2 h-4 w-4" /> Save Changes
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {[
+                      { slug: "about", title: "About Us" },
+                      { slug: "careers", title: "Careers" },
+                      { slug: "press", title: "Press & Media" },
+                      { slug: "privacy-policy", title: "Privacy Policy" },
+                      { slug: "terms-of-service", title: "Terms of Service" },
+                      { slug: "cookie-policy", title: "Cookie Policy" },
+                    ].map((page) => {
+                      const existing = pageContents.find(p => p.slug === page.slug);
+                      return (
+                        <div key={page.slug} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`admin-page-${page.slug}`}>
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-muted rounded-lg">
+                              <FileText className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{page.title}</p>
+                              <p className="text-xs text-muted-foreground">/{page.slug}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {existing && (
+                              <span className="text-xs text-muted-foreground">
+                                Updated: {new Date(existing.updatedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                            <Badge variant="outline" className={existing ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
+                              {existing ? "Published" : "Default"}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const existingContent = existing || { slug: page.slug, title: page.title, content: "", id: 0, updatedAt: new Date() };
+                                setEditingPage(existingContent);
+                                setEditTitle(existingContent.title);
+                                setEditContent(existingContent.content);
+                              }}
+                              data-testid={`button-edit-page-${page.slug}`}
+                            >
+                              <Edit3 className="mr-2 h-4 w-4" /> Edit
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
@@ -696,6 +971,104 @@ export default function Admin() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPaymentRequestDialog} onOpenChange={setShowPaymentRequestDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Company / Tenant</Label>
+              <Input
+                value={prCompany}
+                onChange={(e) => setPrCompany(e.target.value)}
+                placeholder="Company name"
+                data-testid="input-pr-company"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount ($)</Label>
+              <Input
+                type="number"
+                value={prAmount}
+                onChange={(e) => setPrAmount(e.target.value)}
+                placeholder="Enter amount"
+                data-testid="input-pr-amount"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <Select value={prMethod} onValueChange={setPrMethod}>
+                <SelectTrigger data-testid="select-pr-method">
+                  <SelectValue placeholder="Select method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ach">ACH Bank Transfer</SelectItem>
+                  <SelectItem value="card">Credit/Debit Card</SelectItem>
+                  <SelectItem value="crypto">Cryptocurrency</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Description (optional)</Label>
+              <Textarea
+                value={prDescription}
+                onChange={(e) => setPrDescription(e.target.value)}
+                placeholder="e.g., Monthly lease payment for Q1"
+                rows={3}
+                data-testid="input-pr-description"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPaymentRequestDialog(false)}>Cancel</Button>
+              <Button
+                onClick={handlePaymentRequest}
+                disabled={prProcessing || !prCompany || !prAmount || parseFloat(prAmount) <= 0}
+                data-testid="button-pr-confirm"
+              >
+                {prProcessing ? "Sending..." : <><Receipt className="mr-2 h-4 w-4" /> Send Request</>}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showResponseDialog} onOpenChange={setShowResponseDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Respond to Contact Request</DialogTitle>
+          </DialogHeader>
+          {selectedContact && (
+            <div className="space-y-4 py-2">
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">{selectedContact.subject}</p>
+                  <Badge className="bg-blue-100 text-blue-700">{selectedContact.status}</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">From: {selectedContact.name} ({selectedContact.email})</p>
+                <p className="text-sm mt-2">{selectedContact.message}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Your Response</Label>
+                <Textarea
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  placeholder="Type your response here..."
+                  rows={5}
+                  data-testid="input-contact-response"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowResponseDialog(false)}>Cancel</Button>
+                <Button onClick={handleContactResponse} disabled={!responseText.trim()} data-testid="button-send-response">
+                  <Send className="mr-2 h-4 w-4" /> Send Response
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

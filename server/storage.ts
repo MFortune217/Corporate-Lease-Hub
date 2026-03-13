@@ -8,7 +8,10 @@ import {
   type CryptoCurrency, type InsertCrypto,
   type JobRequest, type InsertJobRequest,
   type Notification, type InsertNotification,
+  type ContactRequest, type InsertContactRequest,
+  type PageContent, type InsertPageContent,
   users, companies, properties, corporateLeases, vendors, documents, cryptoCurrencies, jobRequests, notifications,
+  contactRequests, pageContents,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -60,6 +63,15 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationRead(id: number, companyId?: number): Promise<Notification | undefined>;
   markAllNotificationsRead(companyId?: number): Promise<void>;
+
+  getContactRequests(): Promise<ContactRequest[]>;
+  getContactRequest(id: number): Promise<ContactRequest | undefined>;
+  createContactRequest(request: InsertContactRequest): Promise<ContactRequest>;
+  updateContactRequest(id: number, data: Partial<ContactRequest>): Promise<ContactRequest | undefined>;
+
+  getPageContent(slug: string): Promise<PageContent | undefined>;
+  getAllPageContents(): Promise<PageContent[]>;
+  upsertPageContent(content: InsertPageContent): Promise<PageContent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -319,6 +331,46 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.update(notifications).set({ read: true }).where(eq(notifications.read, false));
     }
+  }
+
+  async getContactRequests(): Promise<ContactRequest[]> {
+    return db.select().from(contactRequests).orderBy(desc(contactRequests.createdAt));
+  }
+
+  async getContactRequest(id: number): Promise<ContactRequest | undefined> {
+    const [request] = await db.select().from(contactRequests).where(eq(contactRequests.id, id));
+    return request;
+  }
+
+  async createContactRequest(request: InsertContactRequest): Promise<ContactRequest> {
+    const [created] = await db.insert(contactRequests).values(request).returning();
+    return created;
+  }
+
+  async updateContactRequest(id: number, data: Partial<ContactRequest>): Promise<ContactRequest | undefined> {
+    const [updated] = await db.update(contactRequests).set(data).where(eq(contactRequests.id, id)).returning();
+    return updated;
+  }
+
+  async getPageContent(slug: string): Promise<PageContent | undefined> {
+    const [page] = await db.select().from(pageContents).where(eq(pageContents.slug, slug));
+    return page;
+  }
+
+  async getAllPageContents(): Promise<PageContent[]> {
+    return db.select().from(pageContents);
+  }
+
+  async upsertPageContent(content: InsertPageContent): Promise<PageContent> {
+    const [created] = await db
+      .insert(pageContents)
+      .values({ ...content, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: pageContents.slug,
+        set: { title: content.title, content: content.content, updatedAt: new Date() },
+      })
+      .returning();
+    return created;
   }
 }
 
